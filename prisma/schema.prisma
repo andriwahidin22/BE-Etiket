@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  email      String   @unique
+  password   String
+  namaLengkap String   @default("Unknown")  
+  nomorTelp  String   @default("0000000000") 
+  role       Role     @default(PEMBELI)
+  createdAt  DateTime @default(now())
+}
+
+
+
+enum Role {
+  ADMIN
+  PEMBELI
+}
+
+// Model Tiket
+model Ticket {
+  id         Int      @id @default(autoincrement())
+  kode       String   @unique
+  jenisTiket String
+  hargaTiket Int      // asumsi harga dalam satuan integer (misalnya rupiah)
+
+  // Relasi dengan Pemesanan dan Pembayaran (optional)
+  pemesanans Pemesanan[]
+  pembayarans Pembayaran[]
+}
+
+// Model Venue
+model Venue {
+  id         Int    @id @default(autoincrement())
+  kode       String @unique
+  namaVenue  String
+  keterangan String
+  foto       String?  // misal URL atau path file
+}
+
+// Model Pemesanan
+model Pemesanan {
+  id              Int      @id @default(autoincrement())
+  kodePemesanan   String   @unique
+  namaPengunjung  String
+  tanggalKunjungan DateTime
+  banyakTiket     Int
+  totalPembelian  Int
+  ticketId        Int
+  ticket          Ticket   @relation(fields: [ticketId], references: [id])
+}
+
+// Model Pembayaran
+model Pembayaran {
+  idTransaksi     Int      @id @default(autoincrement())
+  totalPembayaran Int
+  statusPembayaran String
+  tanggalTransaksi DateTime
+  ticketId        Int
+  ticket          Ticket   @relation(fields: [ticketId], references: [id])
+}
