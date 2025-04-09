@@ -8,16 +8,14 @@ datasource db {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  email      String   @unique
-  password   String
-  namaLengkap String   @default("Unknown")  
-  nomorTelp  String   @default("0000000000") 
-  role       Role     @default(PEMBELI)
-  createdAt  DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  email       String   @unique
+  password    String
+  namaLengkap String   @default("Unknown")
+  nomorTelp   String   @default("0000000000")
+  role        Role     @default(PEMBELI)
+  createdAt   DateTime @default(now())
 }
-
-
 
 enum Role {
   ADMIN
@@ -26,43 +24,46 @@ enum Role {
 
 // Model Tiket
 model Ticket {
-  id         Int      @id @default(autoincrement())
-  kode       String   @unique
+  id         Int    @id @default(autoincrement())
+  kode       String @unique
   jenisTiket String
-  hargaTiket Int      // asumsi harga dalam satuan integer (misalnya rupiah)
+  hargaTiket Int
 
-  // Relasi dengan Pemesanan dan Pembayaran (optional)
-  pemesanans Pemesanan[]
-  pembayarans Pembayaran[]
+  // Relasi ke pemesanan
+  pemesanan Pemesanan[]
 }
 
 // Model Venue
 model Venue {
-  id         Int    @id @default(autoincrement())
-  kode       String @unique
+  id         Int     @id @default(autoincrement())
+  kode       String  @unique
   namaVenue  String
   keterangan String
-  foto       String?  // misal URL atau path file
+  foto       String?
 }
 
 // Model Pemesanan
 model Pemesanan {
-  id              Int      @id @default(autoincrement())
-  kodePemesanan   String   @unique
-  namaPengunjung  String
-  tanggalKunjungan DateTime
-  banyakTiket     Int
-  totalPembelian  Int
-  ticketId        Int
-  ticket          Ticket   @relation(fields: [ticketId], references: [id])
+  id                Int      @id @default(autoincrement())
+  kodePemesanan     String   @unique
+  namaPengunjung    String
+  jenisTiketId      Int
+  jenisTiket        Ticket   @relation(fields: [jenisTiketId], references: [id])
+  tanggalBerkunjung DateTime
+  jumlahTiket       Int
+  totalPembelian    Int
+  createdAt         DateTime @default(now())
+
+  pembayaran Pembayaran[]
 }
+
 
 // Model Pembayaran
 model Pembayaran {
-  idTransaksi     Int      @id @default(autoincrement())
-  totalPembayaran Int
+  id               Int       @id @default(autoincrement())
+  pemesananId      Int
+  pemesanan        Pemesanan @relation(fields: [pemesananId], references: [id])
+  totalPembayaran  Int
   statusPembayaran String
-  tanggalTransaksi DateTime
-  ticketId        Int
-  ticket          Ticket   @relation(fields: [ticketId], references: [id])
+  tanggalTransaksi DateTime  @default(now())
 }
