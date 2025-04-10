@@ -5,9 +5,9 @@ const jwt = require("jsonwebtoken");
 const prisma = new PrismaClient();
 const SECRET = process.env.JWT_SECRET;
 
-//REGIS
+//REGIS Khusus user pembeli
 exports.register = async (req, res) => {
-  const { email, password, role, namaLengkap, nomorTelp } = req.body;
+  const { email, password, namaLengkap, nomorTelp } = req.body;
 
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser)
@@ -16,7 +16,13 @@ exports.register = async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const user = await prisma.user.create({
-    data: { email, password: hashedPassword, role, namaLengkap, nomorTelp },
+    data: {
+      email,
+      password: hashedPassword,
+      role: "PEMBELI",
+      namaLengkap,
+      nomorTelp,
+    },
   });
 
   res.json({ msg: "User berhasil didaftarkan", user });

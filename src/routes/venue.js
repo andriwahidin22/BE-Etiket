@@ -1,27 +1,18 @@
 const express = require("express");
 const router = express.Router();
 const upload = require("../middleware/upload");
-const {
-    createVenue,
-    getVenues,
-    updateVenue,
-    deleteVenue,
-} = require("../controllers/venueController");
-const { getVenueById } = require("../controllers/venueController");
+const venueController = require("../controllers/venueController");
+const { verifyToken, isAdmin } = require("../middleware/auth");
 
 // GET all venues
-router.get("/", getVenues);
+router.get("/", venueController.getVenues);
 
-// POST: Create venue (dengan upload file)
-router.post("/", upload.single("foto"), createVenue);
+// POST, PUT, DELETE venue hanya untuk Admin
+router.post("/", verifyToken, isAdmin, upload.single("foto"), venueController.createVenue);
+router.put("/:id", verifyToken, isAdmin, upload.single("foto"), venueController.updateVenue);
+router.delete("/:id", verifyToken, isAdmin, venueController.deleteVenue);
 
-// PUT: Update venue (juga dengan foto jika ada)
-router.put("/:id", upload.single("foto"), updateVenue);
-
-// DELETE: Hapus venue
-router.delete("/:id", deleteVenue);
-
-// GET: berdasarkan id
-router.get('/:id', getVenueById);
+// GET venue by id
+router.get('/:id', venueController.getVenueById);
 
 module.exports = router;

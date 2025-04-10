@@ -1,14 +1,27 @@
 const express = require("express");
 const router = express.Router();
-const { createPembayaran, getPembayaran, getPembayaranById } = require("../controllers/pembayaranController");
 
-// POST /api/pembayaran - Create Pembayaran
-router.post("/", createPembayaran);
+// ✅ Import controller
+const pembayaranController = require("../controllers/pembayaranController");
 
-// GET /api/pembayaran - Get all Pembayaran
-router.get("/", getPembayaran);
+// ✅ Import middleware
+const { verifyToken, isAdmin } = require("../middleware/auth");
 
-//GET /api/pembayaran/:id - Get Pembayaran by id
-router.get("/:id", getPembayaranById);
+// ✅ Destructuring controller functions
+const {
+  getPembayaran,
+  getPembayaranById,
+  createPembayaran
+} = pembayaranController;
+
+// ✅ Routes
+// GET semua pembayaran - hanya bisa diakses oleh user yang login
+router.get("/", verifyToken, getPembayaran);
+
+// GET pembayaran berdasarkan ID
+router.get("/:id", verifyToken, getPembayaranById);
+
+// POST untuk membuat pembayaran
+router.post("/", verifyToken, createPembayaran);
 
 module.exports = router;

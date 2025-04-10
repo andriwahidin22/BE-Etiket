@@ -1,4 +1,4 @@
-require("dotenv").config(); // ✔️ Load env
+require("dotenv").config(); //Load env
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -10,9 +10,12 @@ const venueRoutes = require("./routes/venue");
 const pemesananRoutes = require("./routes/pemesanan");
 const pembayaranRoutes = require("./routes/pembayaran");
 
+//admin
+const dashboardRoutes = require("./routes/admin/dashboardRoutes");
+
 const app = express();
 app.use(cors());
-app.use(express.json()); // ✔️ untuk menerima JSON
+app.use(express.json());
 
 // ✅ untuk handle form-data juga (buat upload)
 app.use(express.urlencoded({ extended: true }));
@@ -28,6 +31,9 @@ app.use("/api/ticket", ticketRoutes);
 app.use("/api/venue", venueRoutes);
 app.use("/api/pemesanan", pemesananRoutes);
 app.use("/api/pembayaran", pembayaranRoutes);
+
+//admin
+app.use("/api/admin/dashboard", dashboardRoutes);
 
 // ✅ Server listen
 const PORT = process.env.PORT || 5001;
