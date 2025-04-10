@@ -61,3 +61,22 @@ exports.getPemesanan = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+//GET By id
+exports.getPemesananById = async (req, res) => {
+    try {
+      const pemesanan = await prisma.pemesanan.findUnique({
+        where: { id: parseInt(req.params.id) },
+        include: { jenisTiket: true }
+      });
+  
+      if (!pemesanan) {
+        return res.status(404).json({ message: "Pemesanan tidak ditemukan" });
+      }
+  
+      res.status(200).json({ status: "success", data: pemesanan });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  };
+  

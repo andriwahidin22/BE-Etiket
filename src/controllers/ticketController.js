@@ -73,3 +73,20 @@ exports.getAllTickets = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// get by id
+exports.getTicketById = async (req, res) => {
+  try {
+    const ticket = await prisma.ticket.findUnique({
+      where: { id: parseInt(req.params.id) },
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ message: "Tiket tidak ditemukan" });
+    }
+
+    res.status(200).json({ status: "success", data: ticket });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

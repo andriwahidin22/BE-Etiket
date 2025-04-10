@@ -87,3 +87,20 @@ exports.getVenues = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+//Get by id
+exports.getVenueById = async (req, res) => {
+  try {
+    const venue = await prisma.venue.findUnique({
+      where: { id: parseInt(req.params.id) }
+    });
+
+    if (!venue) {
+      return res.status(404).json({ message: "Venue tidak ditemukan" });
+    }
+
+    res.status(200).json({ status: "success", data: venue });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

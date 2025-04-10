@@ -5,8 +5,9 @@ const {
     createVenue,
     getVenues,
     updateVenue,
-    deleteVenue
+    deleteVenue,
 } = require("../controllers/venueController");
+const { getVenueById } = require("../controllers/venueController");
 
 // GET all venues
 router.get("/", getVenues);
@@ -19,5 +20,8 @@ router.put("/:id", upload.single("foto"), updateVenue);
 
 // DELETE: Hapus venue
 router.delete("/:id", deleteVenue);
+
+// GET: berdasarkan id
+router.get('/:id', getVenueById);
 
 module.exports = router;
