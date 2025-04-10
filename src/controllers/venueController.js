@@ -4,7 +4,8 @@ const prisma = new PrismaClient();
 // Create a new venue
 exports.createVenue = async (req, res) => {
   try {
-    const { kode, namaVenue, keterangan, foto } = req.body;
+    const { kode, namaVenue, keterangan } = req.body;
+    const foto = req.file ? req.file.filename : null;
 
     const venue = await prisma.venue.create({
       data: { kode, namaVenue, keterangan, foto }
@@ -24,15 +25,20 @@ exports.createVenue = async (req, res) => {
   }
 };
 
+
 // PUT - Update venue
 exports.updateVenue = async (req, res) => {
   try {
     const { id } = req.params;
-    const { kode, namaVenue, keterangan, foto } = req.body;
+    const { kode, namaVenue, keterangan } = req.body;
+    const foto = req.file ? req.file.filename : undefined; // jangan update foto kalau tidak upload baru
+
+    const dataUpdate = { kode, namaVenue, keterangan };
+    if (foto) dataUpdate.foto = foto;
 
     const updated = await prisma.venue.update({
       where: { id: Number(id) },
-      data: { kode, namaVenue, keterangan, foto },
+      data: dataUpdate,
     });
 
     res.json({
@@ -48,6 +54,7 @@ exports.updateVenue = async (req, res) => {
     });
   }
 };
+
 
 // DELETE - Hapus venue
 exports.deleteVenue = async (req, res) => {

@@ -1,6 +1,7 @@
-require("dotenv").config();
+require("dotenv").config(); // ✔️ Load env
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 
 const indexRoutes = require('./routes/index');
 const authRoutes = require("./routes/auth");
@@ -11,9 +12,16 @@ const pembayaranRoutes = require("./routes/pembayaran");
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json()); // ✔️ untuk menerima JSON
 
-// Routes
+// ✅ untuk handle form-data juga (buat upload)
+app.use(express.urlencoded({ extended: true }));
+
+// ✅ Serve static files (foto, dll)
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.use("/uploads", express.static("uploads"));
+
+// ✅ Routing
 app.use('/api/index', indexRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/ticket", ticketRoutes);
@@ -21,5 +29,6 @@ app.use("/api/venue", venueRoutes);
 app.use("/api/pemesanan", pemesananRoutes);
 app.use("/api/pembayaran", pembayaranRoutes);
 
+// ✅ Server listen
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => console.log(`Server jalan di http://localhost:${PORT}`));

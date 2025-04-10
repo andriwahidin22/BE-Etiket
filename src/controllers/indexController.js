@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+//GET  VENUE
 exports.getAllVenue = async (req, res) => {
   try {
     const venue = await prisma.venue.findMany({
@@ -21,6 +22,7 @@ exports.getAllVenue = async (req, res) => {
   }
 };
 
+//GET TICKET
 exports.getAllTicket = async (req, res) => {
   try {
     const ticket = await prisma.ticket.findMany({

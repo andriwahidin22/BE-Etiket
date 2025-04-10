@@ -2,6 +2,7 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { v4: uuidv4 } = require("uuid");
 
+//CREATE
 exports.createPemesanan = async (req, res) => {
   try {
     const {
@@ -46,7 +47,7 @@ exports.createPemesanan = async (req, res) => {
   }
 };
 
-// GET all Pemesanan (dengan relasi ke jenisTiket)
+// GET all Pemesanan 
 exports.getPemesanan = async (req, res) => {
   try {
     const pemesanans = await prisma.pemesanan.findMany({
