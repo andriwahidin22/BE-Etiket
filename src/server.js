@@ -12,6 +12,7 @@ const pembayaranRoutes = require("./routes/pembayaran");
 
 //admin
 const dashboardRoutes = require("./routes/admin/dashboardRoutes");
+const verifikasiRoutes = require("./routes/admin/verifikasiRoutes");
 
 const app = express();
 app.use(cors());
@@ -34,6 +35,7 @@ app.use("/api/pembayaran", pembayaranRoutes);
 
 //admin
 app.use("/api/admin/dashboard", dashboardRoutes);
+app.use("/api/admin/verifikasi", verifikasiRoutes);
 
 // ✅ Server listen
 const PORT = process.env.PORT || 5001;
