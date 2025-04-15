@@ -2,15 +2,17 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { v4: uuidv4 } = require("uuid");
 
-//CREATE
+// CREATE Pemesanan
 exports.createPemesanan = async (req, res) => {
   try {
-    const {
-      namaPengunjung,
-      jenisTiketId,
-      tanggalBerkunjung,
-      jumlahTiket
-    } = req.body;
+    const { userId, namaPengunjung, jenisTiketId, tanggalBerkunjung, jumlahTiket } = req.body;
+
+    // Cari user berdasarkan userId
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      return res.status(404).json({ message: "User tidak ditemukan" });
+    }
 
     // Cari jenis tiket berdasarkan ID yang dikirim
     const tiket = await prisma.ticket.findUnique({ where: { id: jenisTiketId } });
@@ -18,10 +20,13 @@ exports.createPemesanan = async (req, res) => {
       return res.status(404).json({ message: "Jenis tiket tidak ditemukan" });
     }
 
-    // Hitung total pembelian dan generate kode pemesanan unik
+    // Hitung total pembelian
     const totalPembelian = tiket.hargaTiket * jumlahTiket;
+
+    // Generate kode pemesanan unik
     const kodePemesanan = `PMSN-${uuidv4().split("-")[0].toUpperCase()}`;
 
+    // Buat pemesanan
     const pemesanan = await prisma.pemesanan.create({
       data: {
         kodePemesanan,
@@ -29,7 +34,8 @@ exports.createPemesanan = async (req, res) => {
         jenisTiketId,
         tanggalBerkunjung: new Date(tanggalBerkunjung),
         jumlahTiket,
-        totalPembelian
+        totalPembelian,
+        userId,  // Relasi dengan User
       }
     });
 
@@ -47,11 +53,11 @@ exports.createPemesanan = async (req, res) => {
   }
 };
 
-// GET all Pemesanan 
+// GET all Pemesanan
 exports.getPemesanan = async (req, res) => {
   try {
     const pemesanans = await prisma.pemesanan.findMany({
-      include: { jenisTiket: true }
+      include: { jenisTiket: true, user: true }  // Menyertakan user untuk melihat siapa yang memesan
     });
     res.status(200).json({
       status: "success",
@@ -62,21 +68,20 @@ exports.getPemesanan = async (req, res) => {
   }
 };
 
-//GET By id
+// GET Pemesanan By ID
 exports.getPemesananById = async (req, res) => {
-    try {
-      const pemesanan = await prisma.pemesanan.findUnique({
-        where: { id: parseInt(req.params.id) },
-        include: { jenisTiket: true }
-      });
-  
-      if (!pemesanan) {
-        return res.status(404).json({ message: "Pemesanan tidak ditemukan" });
-      }
-  
-      res.status(200).json({ status: "success", data: pemesanan });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+  try {
+    const pemesanan = await prisma.pemesanan.findUnique({
+      where: { id: parseInt(req.params.id) },
+      include: { jenisTiket: true }
+    });
+
+    if (!pemesanan) {
+      return res.status(404).json({ message: "Pemesanan tidak ditemukan" });
     }
-  };
-  
+
+    res.status(200).json({ status: "success", data: pemesanan });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

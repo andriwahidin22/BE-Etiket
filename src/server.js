@@ -9,6 +9,7 @@ const ticketRoutes = require("./routes/ticket");
 const venueRoutes = require("./routes/venue");
 const pemesananRoutes = require("./routes/pemesanan");
 const pembayaranRoutes = require("./routes/pembayaran");
+const ratingRoutes = require("./routes/ratingRoutes");
 
 //admin
 const dashboardRoutes = require("./routes/admin/dashboardRoutes");
@@ -32,6 +33,7 @@ app.use("/api/ticket", ticketRoutes);
 app.use("/api/venue", venueRoutes);
 app.use("/api/pemesanan", pemesananRoutes);
 app.use("/api/pembayaran", pembayaranRoutes);
+app.use("/api/rating", ratingRoutes);
 
 //admin
 app.use("/api/admin/dashboard", dashboardRoutes);
