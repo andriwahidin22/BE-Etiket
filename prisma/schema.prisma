@@ -56,11 +56,10 @@ model Pemesanan {
   jenisTiket        Ticket    @relation(fields: [jenisTiketId], references: [id])
   tanggalBerkunjung DateTime
   jumlahTiket       Int
-  totalPembelian    Int
   createdAt         DateTime  @default(now())
 
   // Relasi ke User (ubah menjadi opsional)
-  userId            Int?     // Mengubah menjadi nullable (opsional)
+  userId            Int?     // x`Mengubah menjadi nullable (opsional)
   user              User?    @relation(fields: [userId], references: [id])
 
   // Status Kehadiran

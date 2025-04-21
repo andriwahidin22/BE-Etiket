@@ -20,9 +20,6 @@ exports.createPemesanan = async (req, res) => {
       return res.status(404).json({ message: "Jenis tiket tidak ditemukan" });
     }
 
-    // Hitung total pembelian
-    const totalPembelian = tiket.hargaTiket * jumlahTiket;
-
     // Generate kode pemesanan unik
     const kodePemesanan = `PMSN-${uuidv4().split("-")[0].toUpperCase()}`;
 
