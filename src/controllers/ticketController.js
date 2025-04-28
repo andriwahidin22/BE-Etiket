@@ -1,48 +1,47 @@
+//file controllers/ticketController.js
+
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-//CREATE
+// CREATE TICKET
 exports.createTicket = async (req, res) => {
   try {
-    const { kode, jenisTiket, hargaTiket } = req.body;
-    // Membuat ticket baru ke database
+    const { code, type, price } = req.body;
     const ticket = await prisma.ticket.create({
-      data: { kode, jenisTiket, hargaTiket },
+      data: { code, type, price },
     });
-    // Mengembalikan response sukses beserta data tiket yang baru dibuat
-    res.json({ msg: "Ticket berhasil dibuat", ticket });
+    res.json({ msg: "Ticket created successfully", ticket });
   } catch (error) {
-    // Mengembalikan error jika terjadi masalah
     res.status(500).json({ error: error.message });
   }
 };
 
-// PUT - Update tiket
+// UPDATE TICKET
 exports.updateTicket = async (req, res) => {
   try {
     const { id } = req.params;
-    const { kode, jenisTiket, hargaTiket } = req.body;
+    const { code, type, price } = req.body;
 
     const updated = await prisma.ticket.update({
       where: { id: Number(id) },
-      data: { kode, jenisTiket, hargaTiket },
+      data: { code, type, price },
     });
 
     res.json({
       status: "success",
-      message: "Tiket berhasil diperbarui",
+      message: "Ticket updated successfully",
       data: updated,
     });
   } catch (error) {
     res.status(500).json({
       status: "error",
-      message: "Gagal memperbarui tiket",
+      message: "Failed to update ticket",
       error: error.message,
     });
   }
 };
 
-// DELETE - Hapus tiket
+// DELETE TICKET
 exports.deleteTicket = async (req, res) => {
   try {
     const { id } = req.params;
@@ -53,18 +52,18 @@ exports.deleteTicket = async (req, res) => {
 
     res.json({
       status: "success",
-      message: `Tiket dengan ID ${id} berhasil dihapus`,
+      message: `Ticket with ID ${id} deleted successfully`,
     });
   } catch (error) {
     res.status(500).json({
       status: "error",
-      message: "Gagal menghapus tiket",
+      message: "Failed to delete ticket",
       error: error.message,
     });
   }
 };
 
-// Get all tickets
+// GET ALL TICKETS
 exports.getAllTickets = async (req, res) => {
   try {
     const tickets = await prisma.ticket.findMany();
@@ -74,7 +73,7 @@ exports.getAllTickets = async (req, res) => {
   }
 };
 
-// get by id
+// GET TICKET BY ID
 exports.getTicketById = async (req, res) => {
   try {
     const ticket = await prisma.ticket.findUnique({
@@ -82,7 +81,7 @@ exports.getTicketById = async (req, res) => {
     });
 
     if (!ticket) {
-      return res.status(404).json({ message: "Tiket tidak ditemukan" });
+      return res.status(404).json({ message: "Ticket not found" });
     }
 
     res.status(200).json({ status: "success", data: ticket });

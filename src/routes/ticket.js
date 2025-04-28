@@ -1,13 +1,10 @@
+//file routes/ticket.js
+
 const express = require('express');
 const router = express.Router();
-
-// ✅ Import semua fungsi dari controller
 const ticketController = require('../controllers/ticketController');
-
-// Middleware untuk autentikasi dan otorisasi
 const { verifyToken, isAdmin } = require("../middleware/auth");
 
-// Destructuring dari ticketController
 const {
   createTicket,
   getAllTickets,
@@ -17,15 +14,15 @@ const {
 } = ticketController;
 
 // Routes CRUD
-// POST, PUT, DELETE hanya boleh diakses oleh Admin
+// POST, PUT, DELETE only accessible by Admin
 router.post("/", verifyToken, isAdmin, createTicket);
 router.put("/:id", verifyToken, isAdmin, updateTicket);
 router.delete("/:id", verifyToken, isAdmin, deleteTicket);
 
-// GET semua tiket
+// GET all tickets
 router.get("/", getAllTickets);
 
-// GET tiket berdasarkan ID
+// GET ticket by ID
 router.get('/:id', getTicketById);
 
 module.exports = router;

@@ -1,4 +1,6 @@
-require("dotenv").config(); //Load env
+// file server.js
+
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -7,38 +9,36 @@ const indexRoutes = require('./routes/index');
 const authRoutes = require("./routes/auth");
 const ticketRoutes = require("./routes/ticket");
 const venueRoutes = require("./routes/venue");
-const pemesananRoutes = require("./routes/pemesanan");
-const pembayaranRoutes = require("./routes/pembayaran");
-const ratingRoutes = require("./routes/ratingRoutes");
+const orderRoutes = require("./routes/order");
+const paymentRoutes = require("./routes/payment");
+const reviewRoutes = require("./routes/review");
 
-//admin
+// Admin routes
 const dashboardRoutes = require("./routes/admin/dashboardRoutes");
-const verifikasiRoutes = require("./routes/admin/verifikasiRoutes");
+const verificationRoutes = require("./routes/admin/verificationRoutes");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-// ✅ untuk handle form-data juga (buat upload)
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Serve static files (foto, dll)
+// Serve static files
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 app.use("/uploads", express.static("uploads"));
 
-// ✅ Routing
+// Routing
 app.use('/api/index', indexRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/ticket", ticketRoutes);
 app.use("/api/venue", venueRoutes);
-app.use("/api/pemesanan", pemesananRoutes);
-app.use("/api/pembayaran", pembayaranRoutes);
-app.use("/api/rating", ratingRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/reviews", reviewRoutes);
 
-//admin
+// Admin routes
 app.use("/api/admin/dashboard", dashboardRoutes);
-app.use("/api/admin/verifikasi", verifikasiRoutes);
+app.use("/api/admin/verification", verificationRoutes);
 
-// ✅ Server listen
+// Server listen
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => console.log(`Server jalan di http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));

@@ -1,10 +1,10 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const indexController = require('../controllers/indexController');
+const indexController = require("../controllers/indexController");
 
-router.get('/venue', indexController.getAllVenue);
-router.get('/ticket', indexController.getAllTicket);
-router.get('/venue/:id', indexController.getVenueById);
-
+// Gunakan langsung tanpa destructuring untuk menghindari error
+router.get("/venues", indexController.getAllVenues);
+router.get("/venues/:id", indexController.getVenueById);
+router.get("/tickets", indexController.getAllTickets);
 
 module.exports = router;

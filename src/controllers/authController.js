@@ -1,3 +1,5 @@
+//file controllers/authController.js
+
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -5,13 +7,13 @@ const jwt = require("jsonwebtoken");
 const prisma = new PrismaClient();
 const SECRET = process.env.JWT_SECRET;
 
-//REGIS Khusus user pembeli
+// Register untuk khusus buyers
 exports.register = async (req, res) => {
-  const { email, password, namaLengkap, nomorTelp } = req.body;
+  const { email, password, fullName, phoneNumber } = req.body;
 
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser)
-    return res.status(400).json({ msg: "Email sudah terdaftar" });
+    return res.status(400).json({ msg: "Email already registered" });
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -19,13 +21,13 @@ exports.register = async (req, res) => {
     data: {
       email,
       password: hashedPassword,
-      role: "PEMBELI",
-      namaLengkap,
-      nomorTelp,
+      role: "BUYER",
+      fullName,
+      phoneNumber,
     },
   });
 
-  res.json({ msg: "User berhasil didaftarkan", user });
+  res.json({ msg: "User registered successfully", user });
 };
 
 //LOGIN
@@ -33,14 +35,14 @@ exports.login = async (req, res) => {
   const { email, password } = req.body;
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return res.status(404).json({ msg: "User tidak ditemukan" });
+  if (!user) return res.status(404).json({ msg: "User not found" });
 
   const valid = await bcrypt.compare(password, user.password);
-  if (!valid) return res.status(401).json({ msg: "Password salah" });
+  if (!valid) return res.status(401).json({ msg: "Invalid password" });
 
   const token = jwt.sign({ id: user.id, role: user.role }, SECRET, {
     expiresIn: "1d",
   });
 
-  res.json({ msg: "Login berhasil", token });
+  res.json({ msg: "Login successful", token });
 };

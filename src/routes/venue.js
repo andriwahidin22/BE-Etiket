@@ -1,3 +1,5 @@
+//file routes/venue.js
+
 const express = require("express");
 const router = express.Router();
 const upload = require("../middleware/upload");
@@ -7,9 +9,9 @@ const { verifyToken, isAdmin } = require("../middleware/auth");
 // GET all venues
 router.get("/", venueController.getVenues);
 
-// POST, PUT, DELETE venue hanya untuk Admin
-router.post("/", verifyToken, isAdmin, upload.single("foto"), venueController.createVenue);
-router.put("/:id", verifyToken, isAdmin, upload.single("foto"), venueController.updateVenue);
+// POST, PUT, DELETE venue only for Admin
+router.post("/", verifyToken, isAdmin, upload.single("photo"), venueController.createVenue);
+router.put("/:id", verifyToken, isAdmin, upload.single("photo"), venueController.updateVenue);
 router.delete("/:id", verifyToken, isAdmin, venueController.deleteVenue);
 
 // GET venue by id

@@ -1,28 +1,30 @@
+//file controllers/indexController.js
+
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-//GET  VENUE
-exports.getAllVenue = async (req, res) => {
+// GET ALL VENUES
+exports.getAllVenues = async (req, res) => {
   try {
-    const venue = await prisma.venue.findMany({
+    const venues = await prisma.venue.findMany({
       select: {
         id: true,
-        namaVenue: true,
-        keterangan: true,
-        foto: true,
+        name: true,
+        description: true,
+        photo: true,
       },
     });
     res.status(200).json({
       status: "success",
-      message: "Data venue ditemukan",
-      data: venue,
+      message: "Venues data retrieved",
+      data: venues,
     });
   } catch (error) {
     res.status(500).json({ status: "error", message: error.message });
   }
 };
 
-//GET VENUE By ID
+// GET VENUE BY ID
 exports.getVenueById = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
@@ -33,13 +35,13 @@ exports.getVenueById = async (req, res) => {
     if (!venue) {
       return res.status(404).json({
         status: "error",
-        message: "Venue tidak ditemukan",
+        message: "Venue not found",
       });
     }
 
     res.status(200).json({
       status: "success",
-      message: "Detail venue ditemukan",
+      message: "Venue details retrieved",
       data: venue,
     });
   } catch (error) {
@@ -47,21 +49,21 @@ exports.getVenueById = async (req, res) => {
   }
 };
 
-//GET TICKET
-exports.getAllTicket = async (req, res) => {
+// GET ALL TICKETS
+exports.getAllTickets = async (req, res) => {
   try {
-    const ticket = await prisma.ticket.findMany({
+    const tickets = await prisma.ticket.findMany({
       select: {
         id: true,
-        kode: true,
-        jenisTiket: true,
-        hargaTiket: true,
+        code: true,
+        type: true,
+        price: true,
       },
     });
     res.status(200).json({
       status: "success",
-      message: "Data tiket ditemukan",
-      data: ticket,
+      message: "Tickets data retrieved",
+      data: tickets,
     });
   } catch (error) {
     res.status(500).json({ status: "error", message: error.message });

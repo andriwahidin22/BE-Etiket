@@ -1,55 +1,67 @@
-const prisma = require("@prisma/client").PrismaClient;
-const prismaClient = new prisma();
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 
-// Get statistik
-exports.getDashboard = async (req, res) => {
+const getDashboard = async (req, res) => {
   try {
-    // Mengambil data pemesanan
-    const totalPemesanan = await prismaClient.pemesanan.count();
-    const totalPembayaran = await prismaClient.pembayaran.count();
-    const totalTiketTerjual = await prismaClient.pemesanan.aggregate({
-      _sum: {
-        jumlahTiket: true,
-      },
+    // Get counts for dashboard
+    const usersCount = await prisma.user.count();
+    const ordersCount = await prisma.order.count();
+    const paymentsCount = await prisma.payment.count();
+    
+    // Get recent orders
+    const recentOrders = await prisma.order.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      include: { user: true }
     });
 
     res.status(200).json({
       status: "success",
-      message: "Dashboard statistics fetched successfully",
       data: {
-        totalPemesanan,
-        totalPembayaran,
-        totalTiketTerjual: totalTiketTerjual._sum.jumlahTiket || 0,
-      },
+        counts: {
+          users: usersCount,
+          orders: ordersCount,
+          payments: paymentsCount
+        },
+        recentOrders
+      }
     });
   } catch (error) {
-    res.status(500).json({
+    res.status(500).json({ 
       status: "error",
-      message: "Gagal mengambil statistik dashboard",
-      error: error.message,
+      message: "Failed to get dashboard data",
+      error: error.message 
     });
   }
 };
 
-// Get Pemesanan
-exports.getPemesananDetails = async (req, res) => {
+const getOrderDetails = async (req, res) => {
   try {
-    const pemesananDetails = await prismaClient.pemesanan.findMany({
+    const orders = await prisma.order.findMany({
       include: {
-        jenisTiket: true,
-        pembayaran: true,
+        user: true,
+        orderItems: {
+          include: { ticket: true }
+        },
+        payments: true
       },
+      orderBy: { createdAt: 'desc' }
     });
 
     res.status(200).json({
       status: "success",
-      data: pemesananDetails,
+      data: orders
     });
   } catch (error) {
     res.status(500).json({
       status: "error",
-      message: "Gagal mengambil detail pemesanan",
-      error: error.message,
+      message: "Failed to get order details",
+      error: error.message
     });
   }
+};
+
+module.exports = { 
+  getDashboard,
+  getOrderDetails
 };

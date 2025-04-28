@@ -7,92 +7,105 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// model user
+// User Model
 model User {
-  id          Int          @id @default(autoincrement())
-  email       String       @unique
+  id          Int       @id @default(autoincrement())
+  email       String    @unique
   password    String
-  namaLengkap String       @default("Unknown")
-  nomorTelp   String       @default("0000000000")
-  role        Role         @default(PEMBELI)
-  createdAt   DateTime     @default(now())
+  fullName    String    @default("Unknown")
+  phoneNumber String    @default("0000000000")
+  role        Role      @default(BUYER)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  pemesanan   Pemesanan[]  // relation
-  rating      Rating[]     // relation
+  orders Order[]
+  reviews Review[]
 }
 
-//
 enum Role {
   ADMIN
-  PEMBELI
+  BUYER
 }
 
-// Model Tiket
+// Ticket Model
 model Ticket {
-  id         Int    @id @default(autoincrement())
-  kode       String @unique
-  jenisTiket String
-  hargaTiket Int
+  id          Int       @id @default(autoincrement())
+  code        String    @unique
+  type        String
+  price       Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  // Relasi ke pemesanan
-  pemesanan Pemesanan[]
+  orderItems OrderItem[]
 }
 
-// Model Venue
+// Venue Model
 model Venue {
-  id         Int     @id @default(autoincrement())
-  kode       String  @unique
-  namaVenue  String
-  keterangan String
-  foto       String?
+  id          Int       @id @default(autoincrement())
+  name        String
+  year        String
+  description String
+  photo       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
-// Model Pemesanan
-model Pemesanan {
-  id                Int       @id @default(autoincrement())
-  kodePemesanan     String    @unique
-  namaPengunjung    String
-  jenisTiketId      Int
-  jenisTiket        Ticket    @relation(fields: [jenisTiketId], references: [id])
-  tanggalBerkunjung DateTime
-  jumlahTiket       Int
-  createdAt         DateTime  @default(now())
-
-  // Relasi ke User (ubah menjadi opsional)
-  userId            Int?     // x`Mengubah menjadi nullable (opsional)
-  user              User?    @relation(fields: [userId], references: [id])
-
-  // Status Kehadiran
-  statusKehadiran   KehadiranStatus @default(BELUM_DATANG)
-
-  pembayaran        Pembayaran[]
+// Order Model
+model Order {
+  id               Int           @id @default(autoincrement())
+  orderCode       String        @unique
+  visitorName     String
+  visitDate       DateTime
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  attendanceStatus AttendanceStatus @default(NOT_ARRIVED)
+  userId          Int?
+  user            User?         @relation(fields: [userId], references: [id])
+  orderItems      OrderItem[]
+  payments        Payment[]
 }
 
-// enum model verifikasi
-enum KehadiranStatus {
-  BELUM_DATANG
-  SUDAH_DATANG
+enum AttendanceStatus {
+  NOT_ARRIVED
+  ARRIVED
   EXPIRED
 }
 
-// Model Pembayaran
-model Pembayaran {
-  id               Int       @id @default(autoincrement())
-  pemesananId      Int
-  pemesanan        Pemesanan @relation(fields: [pemesananId], references: [id])
-  totalPembayaran  Int
-  statusPembayaran String
-  tanggalTransaksi DateTime  @default(now())
+// Payment Model
+model Payment {
+  id              Int       @id @default(autoincrement())
+  orderId         Int
+  order           Order     @relation(fields: [orderId], references: [id])
+  totalAmount     Int
+  paymentStatus   String
+  transactionDate DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Midtrans Order ID
+  midtransOrderId String    @unique
 }
 
-// model Rating
-model Rating {
+// Order Item Model
+model OrderItem {
+  id          Int     @id @default(autoincrement())
+  orderId     Int
+  ticketId    Int
+  quantity    Int
+  ticketPrice Int
+
+  order  Order  @relation(fields: [orderId], references: [id])
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+}
+
+// Review Model
+model Review {
   id        Int      @id @default(autoincrement())
-  userId    Int      @unique
-  skor      Int
-  komentar  String?
+  userId    Int
+  score     Int
+  comment   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user      User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
