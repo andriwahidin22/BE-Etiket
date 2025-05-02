@@ -1,10 +1,24 @@
-//file routes/review.js
-
+// routes/review.js
 const express = require("express");
 const router = express.Router();
-const { upsertReview } = require("../controllers/reviewController");
+const { 
+  getAllReviews,
+  upsertReview,
+  updateReview,
+  deleteReview
+} = require("../controllers/reviewController");
 const { verifyToken } = require("../middleware/auth");
 
-router.post("/", verifyToken, upsertReview);
+// GET semua ulasan (akses publik)
+router.get("/", getAllReviews);
+
+// POST/PUT ulasan (upsert) - perlu autentikasi
+router.post("/create", verifyToken, upsertReview);
+
+// PUT ulasan spesifik (perlu autentikasi)
+router.put("/update/:id", verifyToken, updateReview);
+
+// DELETE ulasan (perlu autentikasi)
+router.delete("/:id", verifyToken, deleteReview);
 
 module.exports = router;

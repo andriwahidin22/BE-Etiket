@@ -30,7 +30,7 @@ exports.register = async (req, res) => {
   res.json({ msg: "User registered successfully", user });
 };
 
-//LOGIN
+// LOGIN
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -40,9 +40,23 @@ exports.login = async (req, res) => {
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) return res.status(401).json({ msg: "Invalid password" });
 
-  const token = jwt.sign({ id: user.id, role: user.role }, SECRET, {
+  const token = jwt.sign({ 
+    id: user.id, 
+    role: user.role,
+    fullName: user.fullName,
+    email: user.email
+  }, SECRET, {
     expiresIn: "1d",
   });
 
-  res.json({ msg: "Login successful", token });
+  res.json({ 
+    msg: "Login successful", 
+    token,
+    role: user.role,  // Add this line to return the role
+    user: {          // Optional: you can return more user data if needed
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName
+    }
+  });
 };

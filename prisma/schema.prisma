@@ -101,7 +101,7 @@ model OrderItem {
 // Review Model
 model Review {
   id        Int      @id @default(autoincrement())
-  userId    Int
+  userId    Int      @unique
   score     Int
   comment   String?
   createdAt DateTime @default(now())
