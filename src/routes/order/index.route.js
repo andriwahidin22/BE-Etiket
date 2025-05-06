@@ -2,8 +2,8 @@
 
 const express = require("express");
 const router = express.Router();
-const orderController = require("../controllers/orderController");
-const { verifyToken } = require("../middleware/auth");
+const orderController = require("../../controllers/order/index.controller");
+const { verifyToken } = require("../../middleware/auth");
 
 // For GET and POST orders, user must be logged in
 router.get("/", verifyToken, orderController.getOrders);

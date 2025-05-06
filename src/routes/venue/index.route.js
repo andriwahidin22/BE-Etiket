@@ -2,9 +2,9 @@
 
 const express = require("express");
 const router = express.Router();
-const upload = require("../middleware/upload");
-const venueController = require("../controllers/venueController");
-const { verifyToken, isAdmin } = require("../middleware/auth");
+const venueController = require("../../controllers/venue/index.controller");
+const { verifyToken, isAdmin } = require("../../middleware/auth");
+const upload = require("../../middleware/upload");
 
 // GET all venues
 router.get("/", venueController.getVenues);

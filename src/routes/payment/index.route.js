@@ -2,8 +2,8 @@
 
 const express = require("express");
 const router = express.Router();
-const paymentController = require("../controllers/paymentController");
-const { verifyToken, isAdmin } = require("../middleware/auth");
+const paymentController = require("../../controllers/payment/index.controller");
+const { verifyToken, isAdmin } = require("../../middleware/auth");
 
 const {
   getPayments,
