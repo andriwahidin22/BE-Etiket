@@ -1,21 +1,24 @@
 const midtransClient = require('midtrans-client');
 
-const isProduction = process.env.MIDTRANS_SANDBOX === 'false';
-const serverKey = isProduction 
-  ? process.env.MIDTRANS_SERVER_KEY_PRODUCTION
-  : process.env.MIDTRANS_SERVER_KEY_SANDBOX;
+// Pastikan environment variables sudah benar
+const isProduction = false; // Sandbox mode
+const serverKey = process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-tTOkKPYle-0yjGfITrEx-0Cv';
 
+// Snap Client
 const snap = new midtransClient.Snap({
   isProduction,
   serverKey,
-  clientKey: process.env.MIDTRANS_CLIENT_KEY,
+  clientKey: process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-QSGS1ln9kbEnOgMU'
 });
 
-// Core API untuk langsung berinteraksi dengan Midtrans
+// Core API Client
 const core = new midtransClient.CoreApi({
   isProduction,
   serverKey,
   clientKey: process.env.MIDTRANS_CLIENT_KEY,
+  // Tambahkan config tambahan
+  apiVersion: 'v2', // Pastikan versi API benar
+  overrideNotificationUrl: process.env.MIDTRANS_NOTIFICATION_URL
 });
 
 module.exports = { snap, core };

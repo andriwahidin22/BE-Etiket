@@ -13,7 +13,5 @@ router.use("/reviews", require("./review/index.route"));
 router.use("/admin/dashboard", require("./admin/dashboardRoutes/index.route"));
 router.use("/admin/verification", require("./admin/verificationRoutes/index.route"));
 
-//notifi
-router.use("/payments/notification", require("./payment/notification.route"));
 
 module.exports = router;

@@ -63,8 +63,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Midtrans Error Handler
-app.use(midtransErrorHandler);
-
+app.use((err, req, res, next) => {
+  if (err.message.includes('Midtrans')) {
+    console.error('Midtrans Error:', err);
+    return res.status(502).json({
+      status: "error",
+      message: "Payment gateway error"
+    });
+  }
+  next(err);
+});
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);

@@ -14,4 +14,12 @@ router.post("/notification", paymentController.handleNotification);
 // Check payment status (protected)
 router.get("/status/:orderId", verifyToken, paymentController.checkPaymentStatus);
 
+router.post("/notification", 
+  express.json({ type: 'application/json' }),
+  paymentController.handleNotification
+);
+
+router.post("/", verifyToken, paymentController.initiatePayment);
+router.get("/status/:orderId", verifyToken, paymentController.checkPaymentStatus);
+
 module.exports = router;

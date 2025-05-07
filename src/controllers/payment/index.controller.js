@@ -114,79 +114,110 @@ exports.initiatePayment = async (req, res) => {
 // Handle Midtrans Notification
 exports.handleNotification = async (req, res) => {
   try {
-    const notification = req.body;
-    
-    // Verify notification
-    const statusResponse = await core.transaction.notification(notification);
-    const { order_id, transaction_status, fraud_status, payment_type, settlement_time } = statusResponse;
-    
-    console.log(`Processing notification for order: ${order_id}`);
-    console.log(`Status: ${transaction_status}, Fraud: ${fraud_status}`);
+    console.log('Raw notification body:', req.body);
 
-    // Find payment record
+    // Pastikan body tidak kosong
+    if (!req.body || Object.keys(req.body).length === 0) {
+      console.error('Empty notification body');
+      return res.status(400).send('Bad Request');
+    }
+
+    // 1. Cari payment record terlebih dahulu
+    const order_id = req.body.order_id || req.body.transaction_id;
+    if (!order_id) {
+      return res.status(400).send('Missing order_id');
+    }
+
     const payment = await prisma.payment.findUnique({
       where: { midtransOrderId: order_id }
     });
 
     if (!payment) {
-      return res.status(404).json({ message: "Payment not found" });
+      console.error(`Payment not found: ${order_id}`);
+      return res.status(404).send('Payment not found');
     }
 
-    // Determine payment status
+    // 2. Verifikasi notifikasi (dengan error handling)
+    let statusResponse;
+    try {
+      // Gunakan parameter yang lebih spesifik
+      statusResponse = await core.transaction.status(order_id);
+      console.log('Transaction status:', statusResponse);
+    } catch (verifyError) {
+      console.error('Verification failed, using raw notification:', verifyError);
+      // Fallback ke data notifikasi langsung jika verifikasi gagal
+      statusResponse = req.body;
+    }
+
+    const { 
+      transaction_status, 
+      fraud_status,
+      payment_type,
+      settlement_time,
+      gross_amount
+    } = statusResponse;
+
+    // 3. Update status pembayaran
     let paymentStatus = payment.paymentStatus;
-    
+    let shouldCreateOrder = false;
+
     if (transaction_status === 'capture') {
       paymentStatus = fraud_status === 'challenge' ? 'CHALLENGE' : 'SUCCESS';
-    } else if (transaction_status === 'settlement') {
+      if (paymentStatus === 'SUCCESS') shouldCreateOrder = true;
+    } 
+    else if (transaction_status === 'settlement') {
       paymentStatus = 'SUCCESS';
-    } else if (['deny', 'cancel', 'expire'].includes(transaction_status)) {
+      shouldCreateOrder = true;
+    }
+    else if (['deny', 'cancel', 'expire'].includes(transaction_status)) {
       paymentStatus = 'FAILED';
     }
 
-    // Update payment status
+    // 4. Update payment
     await prisma.payment.update({
       where: { id: payment.id },
       data: {
         paymentStatus,
         paymentMethod: payment_type,
-        settlementTime: settlement_time ? new Date(settlement_time) : null
+        settlementTime: settlement_time ? new Date(settlement_time) : null,
+        updatedAt: new Date()
       }
     });
 
-    // Only create order if payment is successful
-    if (paymentStatus === 'SUCCESS' && !payment.orderId) {
-      const orderData = await prisma.$transaction(async (tx) => {
-        // Create order
-        const order = await tx.order.create({
-          data: {
-            orderCode: `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-            visitorName: "Will be updated", // You might want to store this elsewhere
-            visitDate: new Date(),
-            userId: payment.userId || null,
-            attendanceStatus: "NOT_ARRIVED"
-          }
+    // 5. Buat order jika sukses
+    if (shouldCreateOrder && !payment.orderId) {
+      try {
+        await prisma.$transaction(async (tx) => {
+          const order = await tx.order.create({
+            data: {
+              orderCode: `ORD-${Date.now()}`,
+              visitorName: payment.visitorName || 'Customer',
+              visitDate: payment.visitDate || new Date(),
+              userId: payment.userId,
+              payment: { connect: { id: payment.id } }
+            }
+          });
+
+          await tx.ticket.create({
+            data: {
+              code: `TICKET-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+              type: 'REGULAR',
+              price: parseInt(gross_amount) || payment.totalAmount,
+              orderId: order.id
+            }
+          });
+
+          console.log(`Created order ${order.id} with ticket`);
         });
-
-        // Link payment to order
-        await tx.payment.update({
-          where: { id: payment.id },
-          data: { orderId: order.id }
-        });
-
-        return order;
-      });
-
-      console.log(`Order created: ${orderData.id}`);
+      } catch (orderError) {
+        console.error('Order creation failed:', orderError);
+      }
     }
 
-    res.status(200).json({ status: "success" });
+    res.status(200).send('OK');
   } catch (error) {
-    console.error("Notification processing error:", error);
-    res.status(500).json({ 
-      status: "error",
-      message: "Failed to process notification",
-      error: error.message
-    });
+    console.error('Notification processing error:', error);
+    res.status(500).send('Internal Server Error');
   }
 };
 
