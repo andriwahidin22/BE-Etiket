@@ -5,6 +5,8 @@
   "main": "src/server.js",
   "scripts": {
     "seed": "node prisma/seed.js",
+    "seed:admin": "node prisma/seeders/admin.seed.js",
+    "seed:payment": "node prisma/seeders/payment.seed.js",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "prisma:generate": "prisma generate",
@@ -14,6 +16,7 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "dotenv": "^16.4.7",

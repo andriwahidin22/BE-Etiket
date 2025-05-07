@@ -1,4 +1,6 @@
+// File: src/app.js
 require("dotenv").config();
+require('events').EventEmitter.defaultMaxListeners = 20; // Tambahkan ini
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -37,6 +39,9 @@ app.get("/api/status", (req, res) => {
 // Mount all API routes
 app.use("/api", apiRoutes);
 
+// Midtrans Error Handler - Pindahkan sebelum global error handler
+app.use(midtransErrorHandler);
+
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -45,8 +50,5 @@ app.use((err, req, res, next) => {
     message: err.message
   });
 });
-
-//midtrans
-app.use(midtransErrorHandler);
 
 module.exports = app;
