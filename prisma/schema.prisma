@@ -35,6 +35,7 @@ model Ticket {
   code        String    @unique
   type        String
   price       Int
+  terms       String?   @db.Text
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
