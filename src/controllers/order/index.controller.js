@@ -1,4 +1,4 @@
-//file controllers/orderController.js
+//file controllers/order/index.controller.js
 
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();

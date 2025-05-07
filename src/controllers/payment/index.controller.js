@@ -1,4 +1,4 @@
-//file controllers/paymentController.js
+//file controllers/payment/index.controller.js
 
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
