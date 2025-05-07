@@ -1,3 +1,5 @@
+// File: prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -18,7 +20,7 @@ model User {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  orders Order[]
+  orders  Order[]
   reviews Review[]
 }
 
@@ -33,7 +35,7 @@ model Ticket {
   code        String    @unique
   type        String
   price       Int
-  terms       String?   @db.Text 
+  terms       String?   @db.Text
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -53,17 +55,17 @@ model Venue {
 
 // Order Model
 model Order {
-  id               Int           @id @default(autoincrement())
-  orderCode       String        @unique
-  visitorName     String
-  visitDate       DateTime
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  attendanceStatus AttendanceStatus @default(NOT_ARRIVED)
-  userId          Int?
-  user            User?         @relation(fields: [userId], references: [id])
-  orderItems      OrderItem[]
-  payments        Payment[]
+  id               Int               @id @default(autoincrement())
+  orderCode        String            @unique
+  visitorName      String
+  visitDate        DateTime
+  attendanceStatus AttendanceStatus  @default(NOT_ARRIVED)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  userId           Int?
+  user             User?             @relation(fields: [userId], references: [id])
+  payment          Payment?
+  orderItems       OrderItem[]
 }
 
 enum AttendanceStatus {
@@ -74,17 +76,27 @@ enum AttendanceStatus {
 
 // Payment Model
 model Payment {
-  id              Int       @id @default(autoincrement())
-  orderId         Int
-  order           Order     @relation(fields: [orderId], references: [id])
+  id              Int             @id @default(autoincrement())
   totalAmount     Int
-  paymentStatus   String
-  transactionDate DateTime  @default(now())
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  paymentStatus   PaymentStatus   @default(PENDING)
+  paymentMethod   String?
+  transactionDate DateTime        @default(now())
+  snapToken       String?
+  redirectUrl     String?
+  settlementTime  DateTime?
+  midtransOrderId String          @unique
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  orderId         Int?            @unique
+  order           Order?          @relation(fields: [orderId], references: [id])
+}
 
-  // Midtrans Order ID
-  midtransOrderId String    @unique
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CHALLENGE
+  EXPIRED
 }
 
 // Order Item Model
