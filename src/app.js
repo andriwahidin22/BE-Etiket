@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const helmet = require("helmet");
+const midtransErrorHandler = require('./middleware/midtransError');
 
 const apiRoutes = require("./routes/api.route");
 
@@ -44,5 +45,8 @@ app.use((err, req, res, next) => {
     message: err.message
   });
 });
+
+//midtrans
+app.use(midtransErrorHandler);
 
 module.exports = app;
