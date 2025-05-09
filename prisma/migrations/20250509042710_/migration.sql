@@ -19,6 +19,7 @@ CREATE TABLE `Ticket` (
     `code` VARCHAR(191) NOT NULL,
     `type` VARCHAR(191) NOT NULL,
     `price` INTEGER NOT NULL,
+    `terms` TEXT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -45,9 +46,9 @@ CREATE TABLE `Order` (
     `orderCode` VARCHAR(191) NOT NULL,
     `visitorName` VARCHAR(191) NOT NULL,
     `visitDate` DATETIME(3) NOT NULL,
+    `attendanceStatus` ENUM('NOT_ARRIVED', 'ARRIVED', 'EXPIRED') NOT NULL DEFAULT 'NOT_ARRIVED',
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
-    `attendanceStatus` ENUM('NOT_ARRIVED', 'ARRIVED', 'EXPIRED') NOT NULL DEFAULT 'NOT_ARRIVED',
     `userId` INTEGER NULL,
 
     UNIQUE INDEX `Order_orderCode_key`(`orderCode`),
@@ -57,15 +58,20 @@ CREATE TABLE `Order` (
 -- CreateTable
 CREATE TABLE `Payment` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `orderId` INTEGER NOT NULL,
     `totalAmount` INTEGER NOT NULL,
-    `paymentStatus` VARCHAR(191) NOT NULL,
+    `paymentStatus` ENUM('PENDING', 'SUCCESS', 'FAILED', 'CHALLENGE', 'EXPIRED') NOT NULL DEFAULT 'PENDING',
+    `paymentMethod` VARCHAR(191) NULL,
     `transactionDate` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `snapToken` VARCHAR(191) NULL,
+    `redirectUrl` VARCHAR(191) NULL,
+    `settlementTime` DATETIME(3) NULL,
+    `midtransOrderId` VARCHAR(191) NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
-    `midtransOrderId` VARCHAR(191) NOT NULL,
+    `orderId` INTEGER NULL,
 
     UNIQUE INDEX `Payment_midtransOrderId_key`(`midtransOrderId`),
+    UNIQUE INDEX `Payment_orderId_key`(`orderId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -89,6 +95,7 @@ CREATE TABLE `Review` (
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
+    UNIQUE INDEX `Review_userId_key`(`userId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -96,7 +103,7 @@ CREATE TABLE `Review` (
 ALTER TABLE `Order` ADD CONSTRAINT `Order_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Payment` ADD CONSTRAINT `Payment_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `Payment` ADD CONSTRAINT `Payment_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `OrderItem` ADD CONSTRAINT `OrderItem_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

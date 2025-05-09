@@ -16,8 +16,7 @@ const core = new midtransClient.CoreApi({
   isProduction,
   serverKey,
   clientKey: process.env.MIDTRANS_CLIENT_KEY,
-  // Tambahkan config tambahan
-  apiVersion: 'v2', // Pastikan versi API benar
+  apiVersion: 'v2',
   overrideNotificationUrl: process.env.MIDTRANS_NOTIFICATION_URL
 });
 
