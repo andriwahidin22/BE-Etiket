@@ -6,8 +6,9 @@ const orderController = require("../../controllers/order/index.controller");
 const { verifyToken } = require("../../middleware/auth");
 
 // For GET and POST orders, user must be logged in
-router.get("/", verifyToken, orderController.getOrders);
-router.get("/:id", verifyToken, orderController.getOrderById);
-router.post("/", verifyToken, orderController.createOrder);
+router.get("/", verifyToken, orderController.getOrders); // Mendapatkan semua order
+router.get("/:id", verifyToken, orderController.getOrderById); // Mendapatkan order berdasarkan ID
+router.post("/", verifyToken, orderController.createOrder); // Membuat order baru dan mengirimkan tiket melalui email
 
 module.exports = router;
+

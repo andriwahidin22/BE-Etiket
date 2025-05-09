@@ -135,7 +135,6 @@ exports.handleNotification = async (req, res) => {
     try {
       statusResponse = await core.transaction.status(order_id);
     } catch (err) {
-      console.warn('Gagal verifikasi ke Midtrans, pakai body:', err);
       statusResponse = body;
     }
 
@@ -196,8 +195,6 @@ exports.handleNotification = async (req, res) => {
             }
           });
         }
-
-        console.log(`Order ${newOrder.id} created for payment ${payment.id}`);
       });
     }
 
@@ -231,7 +228,6 @@ exports.checkPaymentStatus = async (req, res) => {
       const status = await core.transaction.status(orderId);
       midtransStatus = status.transaction_status;
     } catch (error) {
-      console.warn("Failed to check Midtrans status:", error.message);
     }
 
     res.status(200).json({

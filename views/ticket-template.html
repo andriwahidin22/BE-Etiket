@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket Order</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #fff8e1; /* Warna dasar kuning soft */
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .ticket-container {
+            width: 600px;
+            margin: 20px auto;
+            padding: 30px;
+            border-radius: 10px;
+            border: 2px solid #e2b400; /* Kuning */
+            background-color: #f7f7f7;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            background-color: #ffcc00; /* Kuning terang untuk header */
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #fff;
+            margin: 0;
+        }
+
+        .ticket-details {
+            margin-bottom: 20px;
+        }
+
+        .ticket-details p {
+            font-size: 16px;
+            margin: 8px 0;
+        }
+
+        .ticket-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .ticket-table th, .ticket-table td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        .ticket-table th {
+            background-color: #ffcc00;
+            color: #fff;
+        }
+
+        .ticket-table tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        .footer {
+            background-color: #ffcc00; /* Kuning terang untuk footer */
+            padding: 10px;
+            text-align: center;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .footer p {
+            margin: 0;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .ticket-footer {
+            font-size: 14px;
+            color: #333;
+            text-align: center;
+            margin-top: 30px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="ticket-container">
+        <div class="header">
+            <h1>Ticket Order #{{orderCode}}</h1>
+        </div>
+
+        <div class="ticket-details">
+            <p><strong>Customer Name:</strong> {{visitorName}}</p>
+            <p><strong>Visit Date:</strong> {{visitDate}}</p>
+            <p><strong>Email:</strong> {{email}}</p>
+        </div>
+
+        <table class="ticket-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Order Code</td>
+                    <td>{{orderCode}}</td>
+                </tr>
+                <tr>
+                    <td>Visitor Name</td>
+                    <td>{{visitorName}}</td>
+                </tr>
+                <tr>
+                    <td>Visit Date</td>
+                    <td>{{visitDate}}</td>
+                </tr>
+                <tr>
+                    <td>Email</td>
+                    <td>{{email}}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <p>Thank you for your order! We hope you have a great experience.</p>
+        </div>
+
+        <div class="ticket-footer">
+            <p>Powered by Your Company</p>
+        </div>
+    </div>
+</body>
+</html>
