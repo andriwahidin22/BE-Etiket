@@ -1,89 +1,261 @@
-//file controllers/orderController.js
-
+// src/controllers/order/index.controller.js
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
-const { v4: uuidv4 } = require("uuid");
+const fs = require("fs");
+const path = require("path");
+const PDFDocument = require("pdfkit");
+const nodemailer = require("nodemailer");
 
-// CREATE ORDER
-exports.createOrder = async (req, res) => {
-  try {
-    const { userId, visitorName, ticketList, visitDate } = req.body;
+// Fungsi generatePDF (sama seperti sebelumnya)
+const generatePDF = async (order, orderItems, user, outputPath) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 50 });
+      const writeStream = fs.createWriteStream(outputPath);
+      writeStream.on('error', reject);
+      writeStream.on('finish', () => resolve(outputPath));
+      doc.pipe(writeStream);
 
-    // Check user
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+      // Header
+      doc.fontSize(18).text("E-Ticket Museum Lampung", { align: "center" });
+      doc.moveDown();
 
-    // Generate order code
-    const orderCode = `ORD-${uuidv4().split("-")[0].toUpperCase()}`;
+      // Informasi Order
+      doc.fontSize(12)
+        .text(`Order Code: ${order.orderCode}`)
+        .text(`Visitor Name: ${order.visitorName}`)
+        .text(`Visit Date: ${order.visitDate.toDateString()}`)
+        .text(`Email: ${user.email}`);
+      doc.moveDown();
 
-    // Save order
-    const order = await prisma.order.create({
-      data: {
-        orderCode,
-        visitorName,
-        visitDate: new Date(visitDate),
-        userId
-      }
-    });
+      // Header Detail Tiket
+      doc.fontSize(14).text("🎟 Ticket Details", { underline: true });
+      doc.moveDown(0.5);
 
-    // Save order items for each ticket
-    for (let ticketData of ticketList) {
-      const ticket = await prisma.ticket.findUnique({ where: { id: ticketData.ticketId } });
-      await prisma.orderItem.create({
-        data: {
-          orderId: order.id,
-          ticketId: ticket.id,
-          quantity: ticketData.quantity,
-          ticketPrice: ticket.price
-        }
+      // Header Tabel
+      const tableHeaders = ["Code", "Type", "Qty", "Price", "Subtotal"];
+      const columnPositions = [50, 150, 350, 420, 500];
+      doc.fontSize(12).font('Helvetica-Bold');
+      tableHeaders.forEach((header, i) => {
+        doc.text(header, columnPositions[i], doc.y);
       });
+      doc.moveDown();
+
+      // Isi Tabel
+      let y = doc.y;
+      let total = 0;
+      doc.font('Helvetica');
+      orderItems.forEach(item => {
+        const ticketCode = item.ticket?.code || "UNKN";
+        const ticketType = item.ticket?.type || "Unknown";
+        const quantity = Number(item.quantity);
+        const price = Number(item.ticketPrice);
+        const subtotal = quantity * price;
+
+        if (isNaN(quantity) || isNaN(price) || isNaN(subtotal)) {
+          throw new Error(`Invalid numeric value in ticket item: ${JSON.stringify(item)}`);
+        }
+        total += subtotal;
+
+        const priceStr = `Rp ${price.toLocaleString('id-ID')}`;
+        const subtotalStr = `Rp ${subtotal.toLocaleString('id-ID')}`;
+
+        doc.text(ticketCode, columnPositions[0], y)
+          .text(ticketType, columnPositions[1], y)
+          .text(quantity.toString(), columnPositions[2], y, { width: 50, align: 'right' })
+          .text(priceStr, columnPositions[3], y, { width: 70, align: 'right' })
+          .text(subtotalStr, columnPositions[4], y, { width: 80, align: 'right' });
+
+        y += 20; // jarak antar baris
+      });
+
+      const totalStr = `Rp ${total.toLocaleString('id-ID')}`;
+      doc.moveDown(2)
+        .fontSize(12)
+        .font('Helvetica-Bold')
+        .text(`Total: ${totalStr}`, { align: "right" });
+
+      // Footer
+      doc.moveDown(2)
+        .fontSize(10)
+        .text("* Harap tunjukkan tiket ini saat masuk ke Museum Lampung.", { align: "center" });
+
+      doc.end();
+    } catch (err) {
+      reject(err);
     }
-
-    res.status(201).json({
-      status: "success",
-      message: "Order created successfully",
-      data: order
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "error",
-      message: "Failed to create order",
-      error: error.message
-    });
-  }
+  });
 };
 
-// GET ALL ORDERS
-exports.getOrders = async (req, res) => {
-  try {
-    const orders = await prisma.order.findMany({
-      include: { orderItems: { include: { ticket: true } }, user: true }
-    });
-    res.status(200).json({
-      status: "success",
-      data: orders
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+// Fungsi kirim email
+const sendEmail = async (to, subject, text, attachmentPath) => {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail', // contoh, sesuaikan dengan konfigurasi Anda
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to,
+    subject,
+    text,
+    attachments: [
+      {
+        filename: path.basename(attachmentPath),
+        path: attachmentPath,
+      },
+    ],
+  };
+
+  await transporter.sendMail(mailOptions);
 };
 
-// GET ORDER BY ID
+// GET ORDER BY ID (akses tanpa harus user pemilik, tapi bisa ditambahkan validasi jika perlu)
 exports.getOrderById = async (req, res) => {
   try {
+    const orderId = parseInt(req.params.id);
+    if (isNaN(orderId)) {
+      return res.status(400).json({ status: "error", message: "ID order tidak valid" });
+    }
+
     const order = await prisma.order.findUnique({
-      where: { id: parseInt(req.params.id) },
-      include: { orderItems: { include: { ticket: true } } }
+      where: { id: orderId },
+      include: {
+        orderItems: { include: { ticket: true } },
+        user: { select: { id: true, fullName: true, email: true } },
+      },
     });
 
     if (!order) {
-      return res.status(404).json({ message: "Order not found" });
+      return res.status(404).json({ status: "error", message: "Order tidak ditemukan" });
     }
 
     res.status(200).json({ status: "success", data: order });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Get order by ID failed:", error);
+    res.status(500).json({ status: "error", message: error.message });
   }
 };
+
+// DOWNLOAD TICKET PDF berdasarkan order ID
+exports.downloadTicket = async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    if (isNaN(orderId)) {
+      return res.status(400).json({ status: "error", message: "ID order tidak valid" });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        orderItems: { include: { ticket: true } },
+        user: { select: { email: true } },
+      },
+    });
+
+    if (!order) {
+      return res.status(404).json({ status: "error", message: "Order tidak ditemukan" });
+    }
+
+    // Buat folder tickets jika belum ada
+    const ticketsDir = path.join(__dirname, '../../..', 'tickets');
+    if (!fs.existsSync(ticketsDir)) {
+      fs.mkdirSync(ticketsDir, { recursive: true });
+    }
+
+    const pdfPath = path.join(ticketsDir, `${order.orderCode}.pdf`);
+
+    // Jika file PDF belum ada, generate ulang
+    if (!fs.existsSync(pdfPath)) {
+      await generatePDF(order, order.orderItems, order.user, pdfPath);
+    }
+
+    res.setHeader('Content-Disposition', `attachment; filename=${order.orderCode}.pdf`);
+    res.setHeader('Content-Type', 'application/pdf');
+
+    const fileStream = fs.createReadStream(pdfPath);
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error("Download ticket failed:", error);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
+
+// KIRIM ULANG TIKET KE EMAIL YANG DITENTUKAN
+exports.resendTicket = async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    const { email } = req.body;
+
+    if (isNaN(orderId)) {
+      return res.status(400).json({ status: "error", message: "ID order tidak valid" });
+    }
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({ status: "error", message: "Email tidak valid" });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        orderItems: { include: { ticket: true } },
+        user: { select: { fullName: true, email: true } },
+      },
+    });
+
+    if (!order) {
+      return res.status(404).json({ status: "error", message: "Order tidak ditemukan" });
+    }
+
+    // Buat folder tickets jika belum ada
+    const ticketsDir = path.join(__dirname, '../../..', 'tickets');
+    if (!fs.existsSync(ticketsDir)) {
+      fs.mkdirSync(ticketsDir, { recursive: true });
+    }
+
+    const pdfPath = path.join(ticketsDir, `${order.orderCode}.pdf`);
+
+    // Jika file PDF belum ada, generate ulang
+    if (!fs.existsSync(pdfPath)) {
+      await generatePDF(order, order.orderItems, order.user, pdfPath);
+    }
+
+    // Kirim email ke alamat yang diminta
+    await sendEmail(
+      email,
+      "E-Tiket Museum Lampung - Pengiriman Ulang",
+      `Halo,\n\nBerikut adalah e-tiket untuk kunjungan pada ${order.visitDate.toLocaleDateString('id-ID')}.\n\nTerima kasih.`,
+      pdfPath
+    );
+
+    res.status(200).json({
+      status: "success",
+      message: `Tiket berhasil dikirim ulang ke email: ${email}`,
+    });
+  } catch (error) {
+    console.error("Resend ticket failed:", error);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
+
+exports.getAllOrders = async (req, res) => {
+  try {
+    // Karena sudah dicek di middleware, tidak perlu cek role lagi di sini
+    const orders = await prisma.order.findMany({
+      include: {
+        orderItems: { include: { ticket: true } },
+        user: { select: { id: true, fullName: true, email: true } },
+      },
+      orderBy: { visitDate: "desc" },
+    });
+
+    res.status(200).json({ status: "success", data: orders });
+  } catch (error) {
+    console.error("Get all orders failed:", error);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
+
+

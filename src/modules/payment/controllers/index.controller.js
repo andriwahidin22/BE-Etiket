@@ -1,4 +1,4 @@
-//file controllers/paymentController.js
+// controllers/payment/index.controller.js
 
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
@@ -16,8 +16,11 @@ exports.createPayment = async (req, res) => {
       visitDate,
     } = req.body;
 
-    // Check user
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    // Validate user
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      select: { id: true, email: true, fullName: true, phoneNumber: true }
+    });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -28,21 +31,28 @@ exports.createPayment = async (req, res) => {
         where: { id: ticketData.ticketId },
       });
       if (!ticket) {
-        throw new Error(`Ticket ID ${ticketData.ticketId} not found`);
+        return res.status(400).json({ message: `Ticket ${item.ticketId} not found` });
       }
-      const ticketTotal = ticket.price * ticketData.quantity;
-      return acc + ticketTotal;
-    }, 0);
+      
+      const itemTotal = ticket.price * item.quantity;
+      totalAmount += itemTotal;
+      
+      ticketDetails.push({
+        id: ticket.id,
+        name: `${ticket.type} Ticket`,
+        price: ticket.price,
+        quantity: item.quantity
+      });
+    }
 
-    // Generate Order ID for Midtrans
-    const midtransOrderId = `MID-${uuidv4().split("-")[0].toUpperCase()}`;
-
-    // Save payment first
+    // Generate unique order ID
+    const midtransOrderId = `MID-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    
+    // Create payment record first, now including userId and visitDate
     const payment = await prisma.payment.create({
       data: {
         totalAmount,
-        paymentStatus,
-        transactionDate: new Date(transactionDate),
+        paymentStatus: "PENDING",
         midtransOrderId,
       },
     });
@@ -84,43 +94,151 @@ exports.createPayment = async (req, res) => {
 
     res.status(201).json({
       status: "success",
-      message: "Payment processed successfully",
+      message: "Payment initiated",
       data: {
         payment,
         order,
       },
     });
   } catch (error) {
+    console.error("Payment initiation error:", error);
     res.status(500).json({
       status: "error",
-      message: "Payment processing failed",
-      error: error.message,
+      message: "Failed to initiate payment",
+      error: error.message
     });
   }
 };
 
-// GET ALL PAYMENTS
-exports.getPayments = async (req, res) => {
+// Handle Midtrans Notification (dengan generate PDF dan kirim email)
+exports.handleNotification = async (req, res) => {
   try {
-    const payments = await prisma.payment.findMany({
+    const body = req.body;
+    const order_id = body?.order_id || body?.transaction_id;
+
+    if (!order_id) return res.status(400).send('Missing order_id');
+
+    const payment = await prisma.payment.findUnique({
+      where: { midtransOrderId: order_id },
       include: {
+        user: true,
         order: {
-          include: { orderItems: { include: { ticket: true } } },
-        },
-      },
+          include: {
+            orderItems: {
+              include: { ticket: true }
+            }
+          }
+        }
+      }
     });
-    res.status(200).json({
-      status: "success",
-      data: payments,
+
+    if (!payment) return res.status(404).send('Payment not found');
+
+    let statusResponse;
+    try {
+      statusResponse = await core.transaction.status(order_id);
+    } catch (err) {
+      statusResponse = body;
+    }
+
+    const {
+      transaction_status,
+      fraud_status,
+      payment_type,
+      settlement_time,
+      gross_amount
+    } = statusResponse;
+
+    let paymentStatus = payment.paymentStatus;
+    let shouldCreateOrder = false;
+
+    if (transaction_status === 'capture') {
+      paymentStatus = fraud_status === 'challenge' ? 'CHALLENGE' : 'SUCCESS';
+      if (paymentStatus === 'SUCCESS') shouldCreateOrder = true;
+    } else if (transaction_status === 'settlement') {
+      paymentStatus = 'SUCCESS';
+      shouldCreateOrder = true;
+    } else if (['deny', 'cancel', 'expire'].includes(transaction_status)) {
+      paymentStatus = 'FAILED';
+    }
+
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        paymentStatus,
+        paymentMethod: payment_type,
+        settlementTime: settlement_time ? new Date(settlement_time) : null,
+        updatedAt: new Date()
+      }
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+
+    if (shouldCreateOrder && !payment.order) {
+      await prisma.$transaction(async (tx) => {
+        const newOrder = await tx.order.create({
+          data: {
+            orderCode: `ORD-${Date.now()}`,
+            visitorName: payment.user?.fullName || 'Customer',
+            visitDate: payment.visitDate || new Date(),
+            userId: payment.userId,
+            payment: { connect: { id: payment.id } }
+          }
+        });
+
+        // Contoh: buat order item dari tiket yang ada di payment (Anda bisa sesuaikan sesuai data tiket sebenarnya)
+        // Jika Anda menyimpan tiket di payment, gunakan data tersebut. Jika tidak, ambil default ticket.
+        const exampleTicket = await tx.ticket.findFirst();
+
+        if (exampleTicket) {
+          await tx.orderItem.create({
+            data: {
+              orderId: newOrder.id,
+              ticketId: exampleTicket.id,
+              quantity: 1,
+              ticketPrice: exampleTicket.price
+            }
+          });
+        }
+
+        // Setelah order dan order item dibuat, generate PDF tiket
+        const orderWithItems = await tx.order.findUnique({
+          where: { id: newOrder.id },
+          include: {
+            orderItems: { include: { ticket: true } }
+          }
+        });
+
+        // Pastikan folder tickets ada
+        const ticketsDir = path.join(__dirname, "../../../tickets");
+        if (!fs.existsSync(ticketsDir)) {
+          fs.mkdirSync(ticketsDir, { recursive: true });
+        }
+        const pdfPath = path.join(ticketsDir, `${newOrder.orderCode}.pdf`);
+
+        await generatePDF(orderWithItems, orderWithItems.orderItems, payment.user, pdfPath);
+
+        // Kirim email dengan lampiran tiket
+        await sendEmail(
+          payment.user.email,
+          "E-Tiket Museum Lampung",
+          `Halo ${payment.user.fullName},\n\nPembayaran Anda telah berhasil. Berikut adalah e-tiket Anda untuk kunjungan pada ${new Date(orderWithItems.visitDate).toLocaleDateString("id-ID")}.`,
+          pdfPath
+        );
+      });
+    }
+
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error('Notification error:', err);
+    res.status(500).send('Internal Server Error');
   }
 };
 
-// GET PAYMENT BY ID
-exports.getPaymentById = async (req, res) => {
+// Check Payment Status
+exports.checkPaymentStatus = async (req, res) => {
   try {
+    const { orderId } = req.params;
+    
+    // Check in database first
     const payment = await prisma.payment.findUnique({
       where: { id: parseInt(req.params.id) },
       include: {
@@ -132,8 +250,30 @@ exports.getPaymentById = async (req, res) => {
       return res.status(404).json({ message: "Payment not found" });
     }
 
-    res.status(200).json({ status: "success", data: payment });
+    // Optional: Verify with Midtrans
+    let midtransStatus = null;
+    try {
+      const status = await core.transaction.status(orderId);
+      midtransStatus = status.transaction_status;
+    } catch (error) {
+      // ignore error
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        paymentStatus: payment.paymentStatus,
+        midtransStatus,
+        orderCreated: !!payment.orderId,
+        order: payment.order
+      }
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      status: "error",
+      message: "Failed to check payment status",
+      error: error.message
+    });
   }
 };
+

@@ -7,39 +7,63 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User Model
-model User {
-  id          Int       @id @default(autoincrement())
-  email       String    @unique
-  password    String
-  fullName    String    @default("Unknown")
-  phoneNumber String    @default("0000000000")
-  role        Role      @default(BUYER)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  orders Order[]
-  reviews Review[]
-}
+// ==================== ENUMS ====================
 
 enum Role {
   ADMIN
   BUYER
 }
 
-// Ticket Model
+enum AttendanceStatus {
+  NOT_ARRIVED
+  ARRIVED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CHALLENGE
+  EXPIRED
+}
+
+// ==================== MODELS ====================
+
+// ==== User ====
+model User {
+  id                        Int       @id @default(autoincrement())
+  email                     String    @unique
+  password                  String?   // password bisa null untuk user Google login
+  fullName                  String    @default("Unknown")
+  phoneNumber               String    @default("0000000000")
+  role                      Role      @default(BUYER)
+  isVerified                Boolean   @default(false)  // status verifikasi email
+  verificationCode          String?   // kode verifikasi email, nullable
+  verificationCodeExpiresAt DateTime? // waktu expired kode verifikasi
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  orders                    Order[]
+  reviews                   Review[]
+  payments                  Payment[]
+}
+
+
+// ==== Ticket ====
 model Ticket {
   id          Int       @id @default(autoincrement())
   code        String    @unique
   type        String
   price       Int
+  terms       String?   @db.Text
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  orderItems OrderItem[]
+  orderItems  OrderItem[]
 }
 
-// Venue Model
+// ==== Venue ====
 model Venue {
   id          Int       @id @default(autoincrement())
   name        String
@@ -50,43 +74,46 @@ model Venue {
   updatedAt   DateTime  @updatedAt
 }
 
-// Order Model
+// ==== Order ====
 model Order {
-  id               Int           @id @default(autoincrement())
-  orderCode       String        @unique
-  visitorName     String
-  visitDate       DateTime
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  attendanceStatus AttendanceStatus @default(NOT_ARRIVED)
-  userId          Int?
-  user            User?         @relation(fields: [userId], references: [id])
-  orderItems      OrderItem[]
-  payments        Payment[]
+  id               Int               @id @default(autoincrement())
+  orderCode        String            @unique
+  visitorName      String
+  visitDate        DateTime
+  attendanceStatus AttendanceStatus  @default(NOT_ARRIVED)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  userId           Int?
+  user             User?             @relation(fields: [userId], references: [id])
+
+  payment          Payment?          // <- Diperbaiki, hilangkan @relation
+  orderItems       OrderItem[]
 }
 
-enum AttendanceStatus {
-  NOT_ARRIVED
-  ARRIVED
-  EXPIRED
-}
-
-// Payment Model
+// ==== Payment ====
 model Payment {
-  id              Int       @id @default(autoincrement())
-  orderId         Int
-  order           Order     @relation(fields: [orderId], references: [id])
+  id              Int             @id @default(autoincrement())
   totalAmount     Int
-  paymentStatus   String
-  transactionDate DateTime  @default(now())
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  paymentStatus   PaymentStatus   @default(PENDING)
+  paymentMethod   String?
+  transactionDate DateTime        @default(now())
+  snapToken       String?
+  redirectUrl     String?
+  settlementTime  DateTime?
+  midtransOrderId String          @unique
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @default(now())
 
-  // Midtrans Order ID
-  midtransOrderId String    @unique
+  orderId         Int?            @unique
+  order           Order?          @relation(fields: [orderId], references: [id])
+
+  userId          Int?
+  visitDate       DateTime?
+  user            User?           @relation(fields: [userId], references: [id])
 }
 
-// Order Item Model
+// ==== Order Item ====
 model OrderItem {
   id          Int     @id @default(autoincrement())
   orderId     Int
@@ -94,11 +121,11 @@ model OrderItem {
   quantity    Int
   ticketPrice Int
 
-  order  Order  @relation(fields: [orderId], references: [id])
-  ticket Ticket @relation(fields: [ticketId], references: [id])
+  order       Order   @relation(fields: [orderId], references: [id])
+  ticket      Ticket  @relation(fields: [ticketId], references: [id])
 }
 
-// Review Model
+// ==== Review ====
 model Review {
   id        Int      @id @default(autoincrement())
   userId    Int      @unique
@@ -107,5 +134,5 @@ model Review {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 }

@@ -1,4 +1,4 @@
-//file controllers/ticketController.js
+//file controllers/ticket/index.controller.js
 
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
@@ -6,9 +6,9 @@ const prisma = new PrismaClient();
 // CREATE TICKET
 exports.createTicket = async (req, res) => {
   try {
-    const { code, type, price } = req.body;
+    const { code, type, price, terms } = req.body;
     const ticket = await prisma.ticket.create({
-      data: { code, type, price },
+      data: { code, type, price, terms },
     });
     res.json({ msg: "Ticket created successfully", ticket });
   } catch (error) {
@@ -20,11 +20,11 @@ exports.createTicket = async (req, res) => {
 exports.updateTicket = async (req, res) => {
   try {
     const { id } = req.params;
-    const { code, type, price } = req.body;
+    const { code, type, price, terms } = req.body;
 
     const updated = await prisma.ticket.update({
       where: { id: Number(id) },
-      data: { code, type, price },
+      data: { code, type, price, terms },
     });
 
     res.json({

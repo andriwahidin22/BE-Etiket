@@ -4,15 +4,21 @@ const express = require("express");
 const router = express.Router();
 <<<<<<< HEAD:src/routes/order/index.route.js
 const orderController = require("../../controllers/order/index.controller");
-const { verifyToken } = require("../../middleware/auth");
-=======
-const orderController = require('../controllers/index.controller');
-const { verifyToken, isAdmin } = require('@/middleware/auth');
->>>>>>> a6733ec (Feat: Modular Struktur Folder):src/modules/order/routes/index.route.js
+const { verifyToken, isAdmin } = require("../../middleware/auth");
 
-// For GET and POST orders, user must be logged in
-router.get("/", verifyToken, orderController.getOrders);
+// Endpoint untuk admin: get semua order
+router.get("/", verifyToken, isAdmin, orderController.getAllOrders);
+
+// Ambil detail order berdasarkan ID (bisa diakses user mana saja, sesuaikan validasi jika perlu)
 router.get("/:id", verifyToken, orderController.getOrderById);
-router.post("/", verifyToken, orderController.createOrder);
+
+// Download tiket PDF berdasarkan order ID
+router.get("/:id/download-ticket", verifyToken, orderController.downloadTicket);
+
+// Kirim ulang tiket ke email yang ditentukan
+router.post("/:id/resend-ticket", verifyToken, orderController.resendTicket);
+
+// NOTE: Endpoint POST /orders untuk membuat order baru dihapus atau dinonaktifkan
+// Jika ingin tetap ada, pastikan hanya dipakai untuk membuat order baru, bukan untuk resend/download tiket
 
 module.exports = router;
