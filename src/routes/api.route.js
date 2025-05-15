@@ -1,31 +1,6 @@
 // File: src/routes/api.route.js
 const express = require("express");
 const router = express.Router();
-
-<<<<<<< HEAD
-router.use("/index", require("./index/index.route"));
-router.use("/auth", require("./auth/index.route"));
-
-// Ticket Routes
-router.use("/ticket", require("./ticket/index.route"));
-
-// Venue Routes
-router.use("/venue", require("./venue/index.route"));
-
-// Order Routes
-router.use("/orders", require("./order/index.route"));
-
-// Payment Routes
-router.use("/payments", require("./payment/index.route"));
-
-// Review Routes
-router.use("/reviews", require("./review/index.route"));
-
-// Admin Routes
-router.use("/admin/dashboard", require("./admin/dashboardRoutes/index.route"));
-router.use("/admin/verification", require("./admin/verificationRoutes/index.route"));
-=======
-// AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
 const r0 = require("../modules/admin/routes/dashboard.route.js");
 const r1 = require("../modules/admin/routes/users.route.js");
 const r2 = require("../modules/admin/routes/verification.route.js");
@@ -47,6 +22,5 @@ router.use("/review", r6);
 router.use("/ticket", r7);
 router.use("/users", r8);
 router.use("/venue", r9);
->>>>>>> a6733ec (Feat: Modular Struktur Folder)
 
 module.exports = router;

@@ -2,9 +2,9 @@
 
 const express = require("express");
 const router = express.Router();
-<<<<<<< HEAD:src/routes/order/index.route.js
-const orderController = require("../../controllers/order/index.controller");
-const { verifyToken, isAdmin } = require("../../middleware/auth");
+
+const orderController = require("../controllers/index.controller");
+const { verifyToken, isAdmin } = require("@/middleware/auth");
 
 // Endpoint untuk admin: get semua order
 router.get("/", verifyToken, isAdmin, orderController.getAllOrders);
