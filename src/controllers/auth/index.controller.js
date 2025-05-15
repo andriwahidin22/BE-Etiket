@@ -1,5 +1,7 @@
 //file controllers/auth/index.controller.js
 
+// file controllers/auth/index.controller.js
+
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -19,7 +21,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Register dengan verifikasi email
+// Register dengan verifikasi email (hanya untuk user biasa)
 exports.register = async (req, res) => {
   try {
     const { email, password, fullName, phoneNumber } = req.body;
@@ -37,7 +39,7 @@ exports.register = async (req, res) => {
       data: {
         email,
         password: hashedPassword,
-        role: "BUYER",
+        role: "BUYER", // pastikan admin dibuat manual di DB dengan role "ADMIN"
         fullName,
         phoneNumber,
         isVerified: false,
@@ -95,7 +97,7 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
-// Login biasa
+// Login dengan pengecualian verifikasi untuk admin
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -103,7 +105,8 @@ exports.login = async (req, res) => {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(404).json({ msg: "User tidak ditemukan" });
 
-    if (!user.isVerified)
+    // Cek verifikasi email hanya untuk user non-admin
+    if (user.role !== "ADMIN" && !user.isVerified)
       return res.status(403).json({ msg: "Email belum diverifikasi" });
 
     const valid = await bcrypt.compare(password, user.password);

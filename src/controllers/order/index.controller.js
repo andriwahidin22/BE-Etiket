@@ -242,17 +242,13 @@ exports.resendTicket = async (req, res) => {
 
 exports.getAllOrders = async (req, res) => {
   try {
-    // Contoh cek role admin, sesuaikan dengan implementasi Anda
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ status: "error", message: "Akses ditolak" });
-    }
-
+    // Karena sudah dicek di middleware, tidak perlu cek role lagi di sini
     const orders = await prisma.order.findMany({
       include: {
         orderItems: { include: { ticket: true } },
         user: { select: { id: true, fullName: true, email: true } },
       },
-      orderBy: { visitDate: "desc" }, // contoh urut berdasarkan tanggal kunjungan terbaru
+      orderBy: { visitDate: "desc" },
     });
 
     res.status(200).json({ status: "success", data: orders });
@@ -261,4 +257,5 @@ exports.getAllOrders = async (req, res) => {
     res.status(500).json({ status: "error", message: error.message });
   }
 };
+
 
