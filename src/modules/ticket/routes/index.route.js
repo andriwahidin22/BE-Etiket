@@ -2,8 +2,8 @@
 
 const express = require('express');
 const router = express.Router();
-const ticketController = require('../../controllers/ticket/index.controller');
-const { verifyToken, isAdmin } = require("../../middleware/auth");
+const ticketController = require('../controllers/index.controller');
+const { verifyToken, isAdmin } = require('@/middleware/auth');
 
 const {
   createTicket,

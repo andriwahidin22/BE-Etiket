@@ -2,8 +2,13 @@
 
 const express = require("express");
 const router = express.Router();
+<<<<<<< HEAD:src/routes/payment/index.route.js
 const paymentController = require("../../controllers/payment/index.controller");
 const { verifyToken, isAdmin } = require("../../middleware/auth");
+=======
+const paymentController = require('../controllers/index.controller');
+const { verifyToken } = require('@/middleware/auth');
+>>>>>>> a6733ec (Feat: Modular Struktur Folder):src/modules/payment/routes/index.route.js
 
 const {
   getPayments,

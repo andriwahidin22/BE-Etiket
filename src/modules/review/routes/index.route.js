@@ -6,8 +6,8 @@ const {
   upsertReview,
   updateReview,
   deleteReview
-} = require("../../controllers/review/index.controller");
-const { verifyToken } = require("../../middleware/auth");
+} = require('../controllers/index.controller');
+const { verifyToken } = require('@/middleware/auth');
 
 // GET semua ulasan (akses publik)
 router.get("/", getAllReviews);

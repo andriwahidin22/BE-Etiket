@@ -1,36 +1,19 @@
-const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcrypt');
-
-const prisma = new PrismaClient();
+#!/usr/bin/env node
+const seedAdmin = require("./seeders/admin.seed");
 
 async function main() {
-  const email = 'admin@bulindev.test';
-  const plainPassword = 'password123';
-  const hashedPassword = await bcrypt.hash(plainPassword, 10);
+  console.log("🚀 Starting database seeding...");
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  try {
+    await seedAdmin();
 
-  if (!existing) {
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        fullName: 'Admin Bulindev',
-        phoneNumber: '081234567890',
-        role: 'ADMIN',
-      },
-    });
-
-    console.log('✅ User created:', user);
-  } else {
-    console.log('⚠️ User already exists:', existing.email);
+    console.log("\n🎉 All seeders completed successfully!");
+  } catch (error) {
+    console.error("\n🔥 Seeding failed:", error);
+    process.exit(1);
+  } finally {
+    process.exit();
   }
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => {
-    console.error(e);
-    prisma.$disconnect();
-    process.exit(1);
-  });
+main();

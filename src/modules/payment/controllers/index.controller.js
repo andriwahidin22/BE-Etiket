@@ -2,6 +2,7 @@
 
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
+const { snap, core } = require("@/config/midtrans");
 const { v4: uuidv4 } = require("uuid");
 
 exports.createPayment = async (req, res) => {
@@ -12,7 +13,7 @@ exports.createPayment = async (req, res) => {
       ticketList,
       paymentStatus,
       transactionDate,
-      visitDate
+      visitDate,
     } = req.body;
 
     // Check user
@@ -23,7 +24,9 @@ exports.createPayment = async (req, res) => {
 
     // Calculate total payment
     const totalAmount = await ticketList.reduce(async (acc, ticketData) => {
-      const ticket = await prisma.ticket.findUnique({ where: { id: ticketData.ticketId } });
+      const ticket = await prisma.ticket.findUnique({
+        where: { id: ticketData.ticketId },
+      });
       if (!ticket) {
         throw new Error(`Ticket ID ${ticketData.ticketId} not found`);
       }
@@ -41,7 +44,7 @@ exports.createPayment = async (req, res) => {
         paymentStatus,
         transactionDate: new Date(transactionDate),
         midtransOrderId,
-      }
+      },
     });
 
     // Generate order code and save order
@@ -53,28 +56,30 @@ exports.createPayment = async (req, res) => {
         visitDate: new Date(visitDate),
         userId,
         payments: {
-          connect: { id: payment.id }
-        }
-      }
+          connect: { id: payment.id },
+        },
+      },
     });
 
     // Save order items for each ticket
     for (let ticketData of ticketList) {
-      const ticket = await prisma.ticket.findUnique({ where: { id: ticketData.ticketId } });
+      const ticket = await prisma.ticket.findUnique({
+        where: { id: ticketData.ticketId },
+      });
       await prisma.orderItem.create({
         data: {
           orderId: order.id,
           ticketId: ticket.id,
           quantity: ticketData.quantity,
-          ticketPrice: ticket.price
-        }
+          ticketPrice: ticket.price,
+        },
       });
     }
 
     // Update payment with order relation
     await prisma.payment.update({
       where: { id: payment.id },
-      data: { orderId: order.id }
+      data: { orderId: order.id },
     });
 
     res.status(201).json({
@@ -82,8 +87,8 @@ exports.createPayment = async (req, res) => {
       message: "Payment processed successfully",
       data: {
         payment,
-        order
-      }
+        order,
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -118,7 +123,9 @@ exports.getPaymentById = async (req, res) => {
   try {
     const payment = await prisma.payment.findUnique({
       where: { id: parseInt(req.params.id) },
-      include: { order: { include: { orderItems: { include: { ticket: true } } } } },
+      include: {
+        order: { include: { orderItems: { include: { ticket: true } } } },
+      },
     });
 
     if (!payment) {
