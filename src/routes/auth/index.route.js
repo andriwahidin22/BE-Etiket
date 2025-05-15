@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const passport = require("../../config/passport");
-const { register, login, verifyEmail } = require("../../controllers/auth/index.controller");
+const { register, login, verifyEmail, resendVerificationCode } = require("../../controllers/auth/index.controller");
 const { verifyToken, isAdmin } = require("../../middleware/auth");
 
 // Register user baru dengan verifikasi email
@@ -9,6 +9,9 @@ router.post("/register", register);
 
 // Verifikasi kode email
 router.post("/verify-email", verifyEmail);
+
+// Verifikasi ulang (kirim ulang kode verifikasi)
+router.post("/resend-verification", resendVerificationCode);
 
 // Login biasa
 router.post("/login", login);
