@@ -4,6 +4,7 @@ const { verifyToken } = require("../../middleware/auth");
 
 const router = express.Router();
 
+
 // Route untuk update profile
 router.put("/profile", verifyToken, updateProfile);
 

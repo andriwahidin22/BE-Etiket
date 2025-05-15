@@ -67,8 +67,10 @@ CREATE TABLE `Payment` (
     `settlementTime` DATETIME(3) NULL,
     `midtransOrderId` VARCHAR(191) NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
+    `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `orderId` INTEGER NULL,
+    `userId` INTEGER NULL,
+    `visitDate` DATETIME(3) NULL,
 
     UNIQUE INDEX `Payment_midtransOrderId_key`(`midtransOrderId`),
     UNIQUE INDEX `Payment_orderId_key`(`orderId`),
@@ -104,6 +106,9 @@ ALTER TABLE `Order` ADD CONSTRAINT `Order_userId_fkey` FOREIGN KEY (`userId`) RE
 
 -- AddForeignKey
 ALTER TABLE `Payment` ADD CONSTRAINT `Payment_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Payment` ADD CONSTRAINT `Payment_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `OrderItem` ADD CONSTRAINT `OrderItem_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

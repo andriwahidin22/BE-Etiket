@@ -1,88 +1,156 @@
-// src/utils/pdfGenerator.js
 const PDFDocument = require("pdfkit");
 const QRCode = require("qrcode");
+const fs = require("fs");
+const path = require("path");
 
+/**
+ * Fungsi generateTicketPDF
+ * Membuat file PDF e-ticket dengan layout rapi dan data lengkap
+ * @param {Object} order - Data order (orderCode, visitorName, visitDate, dll)
+ * @param {Object} user - Data user (email, dll)
+ * @param {Array} tickets - Array orderItems dengan detail tiket (code, type, price, quantity)
+ * @returns {Promise<Buffer>} - Buffer PDF yang sudah dibuat
+ */
 async function generateTicketPDF(order, user, tickets) {
   return new Promise(async (resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", margin: 50 });
-    let buffers = [];
+    try {
+      const doc = new PDFDocument({ size: "A4", margin: 50 });
+      const buffers = [];
 
-    doc.on("data", buffers.push.bind(buffers));
-    doc.on("end", () => resolve(Buffer.concat(buffers)));
+      doc.on("data", buffers.push.bind(buffers));
+      doc.on("end", () => {
+        const pdfBuffer = Buffer.concat(buffers);
 
-    console.log("Tickets Data:", tickets); // Debugging: cek data tiket
+        // Simpan file PDF ke folder ticket (buat folder jika belum ada)
+        const ticketDir = path.join(__dirname, "..", "..", "ticket");
+        if (!fs.existsSync(ticketDir)) {
+          fs.mkdirSync(ticketDir, { recursive: true });
+        }
 
-    // Tema warna
-    const primaryColor = "#FFB81C"; // warna emas
-    const accentColor = "#FC6C25";  // oranye
-    const darkColor = "#003366";    // gelap untuk teks utama
+        const filePath = path.join(ticketDir, `ticket-${order.orderCode}.pdf`);
+        fs.writeFileSync(filePath, pdfBuffer);
 
-    // Header
-    doc.fillColor(primaryColor).fontSize(24).text("🎫 Museum E-Ticket", {
-      align: "center",
-      underline: true
-    });
+        resolve(pdfBuffer);
+      });
 
-    doc.moveDown();
-    doc.fontSize(14).fillColor(darkColor).text(`Order Code: ${order.orderCode}`);
-    doc.text(`Visitor Name: ${order.visitorName}`);
-    doc.text(`Visit Date: ${new Date(order.visitDate).toLocaleDateString()}`);
-    doc.text(`Email: ${user.email}`);
+      // Warna utama dan sekunder
+      const primaryColor = "#FFB81C";
+      const darkColor = "#003366";
 
-    doc.moveDown();
+      // Header utama
+      doc
+        .fillColor(primaryColor)
+        .fontSize(26)
+        .font("Helvetica-Bold")
+        .text("E-Ticket Museum Lampung", {
+          align: "center",
+          underline: true,
+        });
 
-    // QR Code
-    const qrData = await QRCode.toDataURL(order.orderCode);
-    doc.image(qrData, doc.page.width - 150, 120, { width: 100 });
+      doc.moveDown();
 
-    // Tabel Detil Tiket
-    doc.moveDown().moveDown();
-    doc.fillColor(primaryColor).fontSize(18).text("🎟 Ticket Details", { underline: true });
-    doc.moveDown(0.5);
+      // Informasi order dan user
+      doc
+        .fontSize(14)
+        .fillColor(darkColor)
+        .font("Helvetica")
+        .text(`Order Code: ${order.orderCode}`)
+        .text(`Visitor Name: ${order.visitorName}`)
+        .text(`Visit Date: ${new Date(order.visitDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`)
+        .text(`Email: ${user.email}`);
 
-    // Debugging: cek data tiket per baris
-    tickets.forEach((item, index) => {
-      console.log(`Ticket ${index + 1}:`, item);
-    });
+      // QR Code di kanan atas
+      const qrData = await QRCode.toDataURL(order.orderCode);
+      doc.image(qrData, doc.page.width - 150, 110, { width: 100 });
 
-    // Drawing Table Header
-    const tableTop = doc.y;
-    const rowHeight = 20;
-    const columnWidth = [100, 200, 100, 100]; // Adjust for 4 columns
-    const tableData = tickets.map(item => [
-      item.ticket?.type || "No Type", 
-      item.ticket?.name || "No Name", 
-      item.quantity || 0,
-      `Rp ${item.ticket?.price?.toLocaleString() || 0}`, 
-    ]);
+      doc.moveDown(2);
 
-    // Column Headers
-    doc.fontSize(12).fillColor(darkColor)
-      .text("Type", columnWidth[0], tableTop)
-      .text("Name", columnWidth[0] + columnWidth[1], tableTop)
-      .text("Quantity", columnWidth[0] + columnWidth[1] + columnWidth[2], tableTop)
-      .text("Price", columnWidth[0] + columnWidth[1] + columnWidth[2] + columnWidth[3], tableTop);
+      // Judul Ticket Details
+      doc
+        .fillColor(primaryColor)
+        .fontSize(18)
+        .font("Helvetica-Bold")
+        .text("Ticket Details", {
+          underline: true,
+        });
 
-    doc.moveDown();
+      // Posisi dan ukuran kolom
+      const startX = 50;
+      const startY = doc.y + 10;
+      const lineHeight = 20;
+      const colPositions = {
+        code: startX,
+        type: startX + 100,
+        qty: startX + 300,
+        price: startX + 370,
+        subtotal: startX + 460,
+      };
 
-    // Table Rows
-    tableData.forEach((row, index) => {
-      const y = tableTop + (index + 1) * rowHeight;
-      doc.fontSize(10).fillColor("black")
-        .text(row[0], columnWidth[0], y)
-        .text(row[1], columnWidth[0] + columnWidth[1], y)
-        .text(row[2], columnWidth[0] + columnWidth[1] + columnWidth[2], y)
-        .text(row[3], columnWidth[0] + columnWidth[1] + columnWidth[2] + columnWidth[3], y);
-    });
+      // Header tabel
+      doc
+        .fontSize(12)
+        .fillColor(darkColor)
+        .font("Helvetica-Bold");
+      doc.text("Code", colPositions.code, startY);
+      doc.text("Type", colPositions.type, startY);
+      doc.text("Qty", colPositions.qty, startY, { width: 30, align: "right" });
+      doc.text("Price", colPositions.price, startY, { width: 70, align: "right" });
+      doc.text("Subtotal", colPositions.subtotal, startY, { width: 80, align: "right" });
 
-    // Footer
-    doc.moveDown(2);
-    doc.fontSize(10).fillColor("gray").text(
-      "Harap tunjukkan tiket ini saat masuk. Tiket hanya berlaku pada tanggal yang tertera.",
-      { align: "center" }
-    );
+      // Garis bawah header
+      doc
+        .moveTo(startX, startY + 15)
+        .lineTo(startX + 520, startY + 15)
+        .stroke();
 
-    doc.end();
+      // Baris data tiket
+      doc
+        .fontSize(10)
+        .fillColor("black")
+        .font("Helvetica");
+
+      let total = 0;
+      tickets.forEach((item, index) => {
+        const y = startY + lineHeight * (index + 1);
+
+        // Pastikan data valid dan bukan NaN
+        const quantity = Number(item.quantity) || 0;
+        const price = Number(item.ticket.price) || 0;
+        const subtotal = quantity * price;
+        total += subtotal;
+
+        doc.text(item.ticket.code || "N/A", colPositions.code, y);
+        doc.text(item.ticket.type || "N/A", colPositions.type, y);
+        doc.text(quantity.toString(), colPositions.qty, y, { width: 30, align: "right" });
+        doc.text(`Rp ${price.toLocaleString("id-ID")}`, colPositions.price, y, { width: 70, align: "right" });
+        doc.text(`Rp ${subtotal.toLocaleString("id-ID")}`, colPositions.subtotal, y, { width: 80, align: "right" });
+      });
+
+      // Garis bawah tabel
+      const tableBottomY = startY + lineHeight * (tickets.length + 1);
+      doc.moveTo(startX, tableBottomY).lineTo(startX + 520, tableBottomY).stroke();
+
+      // Total pembayaran
+      doc.moveDown(2);
+      doc
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .text(`Total: Rp ${total.toLocaleString("id-ID")}`, { align: "right" });
+
+      // Footer
+      doc.moveDown(2);
+      doc
+        .fontSize(10)
+        .fillColor("gray")
+        .text(
+          "Harap tunjukkan tiket ini saat masuk ke Museum Lampung. Tiket hanya berlaku sesuai tanggal yang tertera.",
+          { align: "center" }
+        );
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
   });
 }
 

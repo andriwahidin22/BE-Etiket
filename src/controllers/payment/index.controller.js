@@ -8,7 +8,7 @@ const { v4: uuidv4 } = require("uuid");
 // Initiate Payment
 exports.initiatePayment = async (req, res) => {
   try {
-    const { userId, visitorName, ticketList, visitDate } = req.body;
+    const { userId, ticketList, visitDate } = req.body;
 
     // Validate user
     const user = await prisma.user.findUnique({ 
@@ -204,7 +204,6 @@ exports.handleNotification = async (req, res) => {
     res.status(500).send('Internal Server Error');
   }
 };
-
 
 
 // Check Payment Status

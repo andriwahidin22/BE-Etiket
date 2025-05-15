@@ -4,7 +4,7 @@ const nodemailer = require("nodemailer");
 const dotenv = require("dotenv");
 const fs = require("fs");
 const path = require("path");
-const generateTicketPDF = require("./pdfGenerator"); // Import pdf generator
+const generateTicketPDF = require("./pdfGenerator");
 
 dotenv.config();
 
@@ -16,7 +16,6 @@ const sendTicketEmail = async (recipientEmail, order, user, tickets) => {
       "utf-8"
     );
 
-    // Gantikan placeholder dengan data dinamis
     const filledHtml = htmlTemplate
       .replace("{{orderCode}}", order.orderCode)
       .replace("{{visitorName}}", order.visitorName)
@@ -31,7 +30,7 @@ const sendTicketEmail = async (recipientEmail, order, user, tickets) => {
       service: "gmail", // Gunakan Gmail
       auth: {
         user: process.env.EMAIL_USER, // Email pengirim
-        pass: process.env.EMAIL_PASS, // App password dari Gmail
+        pass: process.env.EMAIL_PASS, // App password google
       },
     });
 
