@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 const seedAdmin = require('./seeders/admin.seed');
-const seedPayment = require('./seeders/payment.seed');
 
 async function main() {
   console.log('🚀 Starting database seeding...');
