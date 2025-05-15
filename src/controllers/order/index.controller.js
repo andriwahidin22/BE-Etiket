@@ -239,3 +239,26 @@ exports.resendTicket = async (req, res) => {
     res.status(500).json({ status: "error", message: error.message });
   }
 };
+
+exports.getAllOrders = async (req, res) => {
+  try {
+    // Contoh cek role admin, sesuaikan dengan implementasi Anda
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ status: "error", message: "Akses ditolak" });
+    }
+
+    const orders = await prisma.order.findMany({
+      include: {
+        orderItems: { include: { ticket: true } },
+        user: { select: { id: true, fullName: true, email: true } },
+      },
+      orderBy: { visitDate: "desc" }, // contoh urut berdasarkan tanggal kunjungan terbaru
+    });
+
+    res.status(200).json({ status: "success", data: orders });
+  } catch (error) {
+    console.error("Get all orders failed:", error);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
+

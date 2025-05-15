@@ -5,6 +5,9 @@ const router = express.Router();
 const orderController = require("../../controllers/order/index.controller");
 const { verifyToken } = require("../../middleware/auth");
 
+// Ambil semua order (hanya untuk admin)
+router.get("/", verifyToken, orderController.getAllOrders);
+
 // Ambil detail order berdasarkan ID (bisa diakses user mana saja, sesuaikan validasi jika perlu)
 router.get("/:id", verifyToken, orderController.getOrderById);
 
