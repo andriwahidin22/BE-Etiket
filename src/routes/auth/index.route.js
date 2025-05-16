@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const passport = require("../../config/passport");
-const { register, login, verifyEmail, resendVerificationCode } = require("../../controllers/auth/index.controller");
+const { register, login, verifyEmail, resendVerificationCode, forgotPassword, resetPassword } = require("../../controllers/auth/index.controller");
 const { verifyToken, isAdmin } = require("../../middleware/auth");
 
 // Register user baru dengan verifikasi email
@@ -15,6 +15,12 @@ router.post("/resend-verification", resendVerificationCode);
 
 // Login biasa
 router.post("/login", login);
+
+// Route request reset password (kirim kode)
+router.post("/forgot-password", forgotPassword);
+
+// Route reset password dengan kode verifikasi
+router.post("/reset-password", resetPassword);
 
 // Google OAuth routes
 router.get(

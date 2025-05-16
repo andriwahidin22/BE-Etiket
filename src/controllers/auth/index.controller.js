@@ -218,7 +218,7 @@ exports.login = async (req, res) => {
         email: user.email,
       },
       SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1h" }
     );
 
     return res.json({
@@ -236,5 +236,90 @@ exports.login = async (req, res) => {
     });
   } catch (err) {
     return res.status(500).json({ msg: "Terjadi kesalahan server", error: err.message });
+  }
+};
+
+// Request reset password (kirim kode reset ke email)
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(404).json({ msg: "User tidak ditemukan" });
+
+    // Generate kode reset 6 digit
+    const resetCode = crypto.randomInt(100000, 999999).toString();
+    const now = new Date();
+    // Expired 1 jam dari sekarang
+    const expiresAt = new Date(now.getTime() + 60 * 60 * 1000);
+
+    // Simpan kode reset dan expired ke user
+    await prisma.user.update({
+      where: { email },
+      data: {
+        resetPasswordCode: resetCode,
+        resetPasswordExpiresAt: expiresAt,
+        updatedAt: now,
+      },
+    });
+
+    // Kirim email kode reset password
+    const mailOptions = {
+      from: `"Museum Lampung" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: "Reset Password - Kode Verifikasi",
+      html: `
+        <p>Halo ${user.fullName},</p>
+        <p>Anda meminta reset password. Berikut kode verifikasi untuk reset password Anda:</p>
+        <h2>${resetCode}</h2>
+        <p>Kode ini berlaku selama 1 jam.</p>
+        <p>Jika Anda tidak meminta reset password, abaikan email ini.</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({ msg: "Kode reset password telah dikirim ke email Anda" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Terjadi kesalahan server", error: err.message });
+  }
+};
+
+// Reset password dengan kode verifikasi
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(404).json({ msg: "User tidak ditemukan" });
+
+    const now = new Date();
+
+    if (!user.resetPasswordCode || user.resetPasswordCode !== code) {
+      return res.status(400).json({ msg: "Kode reset password salah" });
+    }
+
+    if (!user.resetPasswordExpiresAt || user.resetPasswordExpiresAt < now) {
+      return res.status(400).json({ msg: "Kode reset password sudah kadaluarsa" });
+    }
+
+    // Hash password baru
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password dan hapus kode reset
+    await prisma.user.update({
+      where: { email },
+      data: {
+        password: hashedPassword,
+        resetPasswordCode: null,
+        resetPasswordExpiresAt: null,
+        updatedAt: now,
+      },
+    });
+
+    res.json({ msg: "Password berhasil diubah, silakan login dengan password baru" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Terjadi kesalahan server", error: err.message });
   }
 };
