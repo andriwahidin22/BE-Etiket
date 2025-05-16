@@ -41,6 +41,10 @@ model User {
   isVerified                Boolean   @default(false)  // status verifikasi email
   verificationCode          String?   // kode verifikasi email, nullable
   verificationCodeExpiresAt DateTime? // waktu expired kode verifikasi
+
+  resetPasswordCode         String?   // kode reset password, nullable
+  resetPasswordExpiresAt    DateTime? // waktu expired kode reset password, nullable
+
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
 
@@ -48,6 +52,7 @@ model User {
   reviews                   Review[]
   payments                  Payment[]
 }
+
 
 
 // ==== Ticket ====
