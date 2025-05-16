@@ -4,7 +4,7 @@ const nodemailer = require("nodemailer");
 const dotenv = require("dotenv");
 const fs = require("fs");
 const path = require("path");
-const generateTicketPDF = require("./pdfGenerator");
+const generateTicketPDF = require("./generateTicketPDF.js");
 
 dotenv.config();
 

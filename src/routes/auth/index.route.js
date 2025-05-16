@@ -45,13 +45,11 @@ router.get(
       { expiresIn: "1d" }
     );
 
-    // Kirim token ke client, bisa redirect atau response JSON
-    res.json({
-      status: "success",
-      message: "Login dengan Google berhasil",
-      data: { token },
-    });
+    // Redirect ke frontend callback dengan token sebagai query parameter
+    const frontendCallbackUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/auth/google/callback?token=${token}`;
+    res.redirect(frontendCallbackUrl);
   }
 );
+
 
 module.exports = router;
