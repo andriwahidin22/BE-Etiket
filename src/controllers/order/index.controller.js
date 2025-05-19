@@ -1,155 +1,16 @@
 // src/controllers/order/index.controller.js
+
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const fs = require("fs");
 const path = require("path");
-const PDFDocument = require("pdfkit");
 const nodemailer = require("nodemailer");
-const QRCode = require("qrcode");
+const generateTicketPDF = require("../../utils/generateTicketPDF");
 
-
-// Fungsi generatePDF (sama seperti sebelumnya)
-const generatePDF = async (order, orderItems, user, outputPath) => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const doc = new PDFDocument({
-        size: [350, 150],
-        layout: "landscape",
-        margin: 15,
-      });
-
-      const writeStream = fs.createWriteStream(outputPath);
-      writeStream.on("error", reject);
-      writeStream.on("finish", () => resolve(outputPath));
-      doc.pipe(writeStream);
-
-      const primaryColor = "#FFB81C";
-      const darkColor = "#003366";
-      const grayColor = "#666666";
-
-      // Background putih dengan border rounded rectangle
-      doc
-        .rect(5, 5, doc.page.width - 10, doc.page.height - 10)
-        .fill("#ffffff")
-        .strokeColor(primaryColor)
-        .lineWidth(2)
-        .roundedRect(5, 5, doc.page.width - 10, doc.page.height - 10, 10)
-        .stroke();
-
-      // Header kiri: Judul tiket
-      doc
-        .fillColor(primaryColor)
-        .fontSize(16)
-        .font("Helvetica-Bold")
-        .text("E-Ticket Museum Lampung", 20, 20, { width: 200 });
-
-      // QR Code kanan atas
-      const qrDataUrl = await QRCode.toDataURL(order.orderCode);
-      const qrSize = 80;
-      doc.image(qrDataUrl, doc.page.width - qrSize - 20, 15, { width: qrSize, height: qrSize });
-
-      // Garis pemisah vertikal di tengah bawah QR
-      doc
-        .moveTo(doc.page.width - qrSize - 30, 15)
-        .lineTo(doc.page.width - qrSize - 30, 15 + qrSize)
-        .lineWidth(1)
-        .strokeColor(primaryColor)
-        .stroke();
-
-      // Informasi order di bawah header (kiri bawah QR)
-      const infoX = 20;
-      const infoY = 60;
-      doc
-        .fillColor(darkColor)
-        .fontSize(10)
-        .font("Helvetica")
-        .text(`Order Code: ${order.orderCode}`, infoX, infoY)
-        .text(`Visitor: ${order.visitorName}`, infoX, infoY + 14)
-        .text(
-          `Visit Date: ${new Date(order.visitDate).toLocaleDateString("id-ID", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}`,
-          infoX,
-          infoY + 28
-        )
-        .text(`Email: ${user.email}`, infoX, infoY + 42);
-
-      // Garis horizontal pemisah
-      const lineY = 110;
-      doc
-        .moveTo(15, lineY)
-        .lineTo(doc.page.width - 15, lineY)
-        .lineWidth(1)
-        .strokeColor(primaryColor)
-        .stroke();
-
-      // Detail tiket (tabel sederhana) di bawah garis
-      const tableStartY = lineY + 8;
-      const colX = [20, 90, 180, 230, 300];
-      const colHeaders = ["Code", "Type", "Qty", "Price", "Subtotal"];
-
-      // Header tabel
-      doc
-        .fontSize(9)
-        .fillColor(primaryColor)
-        .font("Helvetica-Bold");
-      colHeaders.forEach((header, i) => {
-        doc.text(header, colX[i], tableStartY);
-      });
-
-      // Baris data tiket
-      doc.font("Helvetica").fillColor(darkColor).fontSize(9);
-      let total = 0;
-      orderItems.forEach((item, idx) => {
-        const y = tableStartY + 14 + idx * 12;
-        const quantity = Number(item.quantity) || 0;
-        const price = Number(item.ticketPrice) || 0;
-        const subtotal = quantity * price;
-        total += subtotal;
-
-        doc.text(item.ticket?.code || "N/A", colX[0], y);
-        doc.text(item.ticket?.type || "N/A", colX[1], y);
-        doc.text(quantity.toString(), colX[2], y, { width: 20, align: "right" });
-        doc.text(price.toLocaleString("id-ID"), colX[3], y, { width: 50, align: "right" });
-        doc.text(subtotal.toLocaleString("id-ID"), colX[4], y, { width: 50, align: "right" });
-      });
-
-      // Total harga di kanan bawah tabel
-      doc
-        .font("Helvetica-Bold")
-        .fontSize(10)
-        .fillColor(primaryColor)
-        .text(`Total: Rp ${total.toLocaleString("id-ID")}`, doc.page.width - 120, tableStartY + 14 + orderItems.length * 12 + 6, {
-          align: "right",
-          width: 100,
-        });
-
-      // Footer kecil di bawah total
-      doc
-        .fontSize(7)
-        .fillColor(grayColor)
-        .font("Helvetica-Oblique")
-        .text(
-          "Harap tunjukkan tiket ini saat masuk ke Museum Lampung. Tiket hanya berlaku sesuai tanggal yang tertera.",
-          20,
-          doc.page.height - 25,
-          { width: doc.page.width - 40, align: "center" }
-        );
-
-      doc.end();
-    } catch (err) {
-      reject(err);
-    }
-  });
-};
-
-
-// Fungsi kirim email
+// Fungsi kirim email dengan lampiran PDF tiket
 const sendEmail = async (to, subject, text, attachmentPath) => {
   const transporter = nodemailer.createTransport({
-    service: 'gmail', // contoh, sesuaikan dengan konfigurasi Anda
+    service: "gmail", // Sesuaikan dengan konfigurasi email Anda
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
@@ -172,7 +33,7 @@ const sendEmail = async (to, subject, text, attachmentPath) => {
   await transporter.sendMail(mailOptions);
 };
 
-// GET ORDER BY ID (akses tanpa harus user pemilik, tapi bisa ditambahkan validasi jika perlu)
+// Mendapatkan detail order berdasarkan ID
 exports.getOrderById = async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
@@ -183,7 +44,7 @@ exports.getOrderById = async (req, res) => {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
-        orderItems: { include: { ticket: true } },
+        orderItems: { include: { ticket: true, ticketInstances: true } },
         user: { select: { id: true, fullName: true, email: true } },
       },
     });
@@ -199,7 +60,7 @@ exports.getOrderById = async (req, res) => {
   }
 };
 
-// DOWNLOAD TICKET PDF berdasarkan order ID
+// Download PDF tiket berdasarkan order ID
 exports.downloadTicket = async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
@@ -210,8 +71,8 @@ exports.downloadTicket = async (req, res) => {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
-        orderItems: { include: { ticket: true } },
-        user: { select: { email: true } },
+        orderItems: { include: { ticket: true, ticketInstances: true } },
+        user: { select: { email: true, fullName: true } },
       },
     });
 
@@ -219,21 +80,23 @@ exports.downloadTicket = async (req, res) => {
       return res.status(404).json({ status: "error", message: "Order tidak ditemukan" });
     }
 
-    // Buat folder tickets jika belum ada
-    const ticketsDir = path.join(__dirname, '../../..', 'tickets');
+    // Pastikan folder tickets ada
+    const ticketsDir = path.join(__dirname, "../../..", "tickets");
     if (!fs.existsSync(ticketsDir)) {
       fs.mkdirSync(ticketsDir, { recursive: true });
     }
 
     const pdfPath = path.join(ticketsDir, `${order.orderCode}.pdf`);
 
-    // Jika file PDF belum ada, generate ulang
-    if (!fs.existsSync(pdfPath)) {
-      await generatePDF(order, order.orderItems, order.user, pdfPath);
-    }
+    // Generate ulang PDF tiket agar desain terbaru selalu dipakai
+    // Kumpulkan semua ticket instances dari order items
+    const allTicketInstances = order.orderItems.flatMap((item) => item.ticketInstances);
 
-    res.setHeader('Content-Disposition', `attachment; filename=${order.orderCode}.pdf`);
-    res.setHeader('Content-Type', 'application/pdf');
+    await generateTicketPDF(order, allTicketInstances, order.user, pdfPath);
+
+    // Kirim file PDF sebagai attachment download
+    res.setHeader("Content-Disposition", `attachment; filename=${order.orderCode}.pdf`);
+    res.setHeader("Content-Type", "application/pdf");
 
     const fileStream = fs.createReadStream(pdfPath);
     fileStream.pipe(res);
@@ -243,7 +106,7 @@ exports.downloadTicket = async (req, res) => {
   }
 };
 
-// KIRIM ULANG TIKET KE EMAIL YANG DITENTUKAN
+// Kirim ulang tiket ke email yang ditentukan
 exports.resendTicket = async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
@@ -252,14 +115,14 @@ exports.resendTicket = async (req, res) => {
     if (isNaN(orderId)) {
       return res.status(400).json({ status: "error", message: "ID order tidak valid" });
     }
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
+    if (!email || typeof email !== "string" || !email.includes("@")) {
       return res.status(400).json({ status: "error", message: "Email tidak valid" });
     }
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
-        orderItems: { include: { ticket: true } },
+        orderItems: { include: { ticket: true, ticketInstances: true } },
         user: { select: { fullName: true, email: true } },
       },
     });
@@ -268,24 +131,25 @@ exports.resendTicket = async (req, res) => {
       return res.status(404).json({ status: "error", message: "Order tidak ditemukan" });
     }
 
-    // Buat folder tickets jika belum ada
-    const ticketsDir = path.join(__dirname, '../../..', 'tickets');
+    // Pastikan folder tickets ada
+    const ticketsDir = path.join(__dirname, "../../..", "tickets");
     if (!fs.existsSync(ticketsDir)) {
       fs.mkdirSync(ticketsDir, { recursive: true });
     }
 
     const pdfPath = path.join(ticketsDir, `${order.orderCode}.pdf`);
 
-    // Jika file PDF belum ada, generate ulang
-    if (!fs.existsSync(pdfPath)) {
-      await generatePDF(order, order.orderItems, order.user, pdfPath);
-    }
+    // Generate ulang PDF tiket agar desain terbaru selalu dipakai
+    const allTicketInstances = order.orderItems.flatMap((item) => item.ticketInstances);
+    await generateTicketPDF(order, allTicketInstances, order.user, pdfPath);
 
-    // Kirim email ke alamat yang diminta
+    // Kirim email ke alamat yang diminta dengan lampiran tiket
     await sendEmail(
       email,
       "E-Tiket Museum Lampung - Pengiriman Ulang",
-      `Halo,\n\nBerikut adalah e-tiket untuk kunjungan pada ${order.visitDate.toLocaleDateString('id-ID')}.\n\nTerima kasih.`,
+      `Halo,\n\nBerikut adalah e-tiket untuk kunjungan pada ${order.visitDate.toLocaleDateString(
+        "id-ID"
+      )}.\n\nTerima kasih.`,
       pdfPath
     );
 
@@ -299,13 +163,12 @@ exports.resendTicket = async (req, res) => {
   }
 };
 
-// Get All Orders
+// Mendapatkan semua order (misal untuk admin)
 exports.getAllOrders = async (req, res) => {
   try {
-    // Karena sudah dicek di middleware, tidak perlu cek role lagi di sini
     const orders = await prisma.order.findMany({
       include: {
-        orderItems: { include: { ticket: true } },
+        orderItems: { include: { ticket: true, ticketInstances: true } },
         user: { select: { id: true, fullName: true, email: true } },
       },
       orderBy: { visitDate: "desc" },
@@ -339,7 +202,7 @@ exports.validateOrderByCode = async (req, res) => {
       return res.status(404).json({ status: "error", message: "Pemesanan tidak ditemukan" });
     }
 
-    // Cek status saat ini
+    // Cek status saat ini agar tidak duplikat update
     if (order.attendanceStatus === "ARRIVED") {
       return res.status(400).json({ status: "error", message: "Pemesanan sudah dikonfirmasi hadir" });
     }
@@ -347,7 +210,26 @@ exports.validateOrderByCode = async (req, res) => {
       return res.status(400).json({ status: "error", message: "Pemesanan sudah dibatalkan" });
     }
 
-    // Update status kehadiran
+    // Validasi tanggal kunjungan untuk status ARRIVED
+    if (status === "ARRIVED") {
+      const now = new Date();
+      const visitDate = new Date(order.visitDate);
+
+      // Bandingkan hanya tanggal tanpa waktu
+      const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const visitDateOnly = new Date(visitDate.getFullYear(), visitDate.getMonth(), visitDate.getDate());
+
+      if (nowDateOnly < visitDateOnly) {
+        return res.status(400).json({
+          status: "error",
+          message: `Status tidak bisa diubah menjadi hadir sebelum tanggal kunjungan (${visitDateOnly.toLocaleDateString(
+            "id-ID"
+          )})`,
+        });
+      }
+    }
+
+    // Update status kehadiran order
     const updatedOrder = await prisma.order.update({
       where: { orderCode },
       data: { attendanceStatus: status },
@@ -363,4 +245,3 @@ exports.validateOrderByCode = async (req, res) => {
     res.status(500).json({ status: "error", message: error.message });
   }
 };
-

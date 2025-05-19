@@ -53,8 +53,6 @@ model User {
   payments                  Payment[]
 }
 
-
-
 // ==== Ticket ====
 model Ticket {
   id          Int       @id @default(autoincrement())
@@ -120,14 +118,27 @@ model Payment {
 
 // ==== Order Item ====
 model OrderItem {
-  id          Int     @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   orderId     Int
   ticketId    Int
   quantity    Int
   ticketPrice Int
 
-  order       Order   @relation(fields: [orderId], references: [id])
-  ticket      Ticket  @relation(fields: [ticketId], references: [id])
+  order       Order            @relation(fields: [orderId], references: [id])
+  ticket      Ticket           @relation(fields: [ticketId], references: [id])
+  ticketInstances TicketInstance[]
+}
+
+// ==== Ticket Instance (Tiket Fisik) ====
+model TicketInstance {
+  id               Int              @id @default(autoincrement())
+  orderItemId      Int
+  qrCode           String           @unique
+  attendanceStatus AttendanceStatus  @default(NOT_ARRIVED)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  orderItem        OrderItem        @relation(fields: [orderItemId], references: [id])
 }
 
 // ==== Review ====
