@@ -322,12 +322,11 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
-// Fungsi revoke Google token (opsional)
 async function revokeGoogleToken(token) {
   try {
     await axios.post(
-      `https://oauth2.googleapis.com/revoke?token=${token}`,
-      {},
+      `https://oauth2.googleapis.com/revoke`,
+      `token=${token}`,
       { headers: { "Content-type": "application/x-www-form-urlencoded" } }
     );
     console.log("Google token revoked");
@@ -336,17 +335,14 @@ async function revokeGoogleToken(token) {
   }
 }
 
-// Logout controller
 exports.logout = async (req, res) => {
   try {
-    // Ambil token dari header Authorization
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(400).json({ msg: "Token tidak ditemukan" });
     }
     const token = authHeader.split(" ")[1];
 
-    // Verifikasi token untuk dapatkan user info
     let decoded;
     try {
       decoded = jwt.verify(token, SECRET);
@@ -354,13 +350,11 @@ exports.logout = async (req, res) => {
       return res.status(401).json({ msg: "Token tidak valid atau sudah expired" });
     }
 
-    // Jika Anda menyimpan Google access token di user, revoke token Google
     const userId = decoded.id;
     if (userId) {
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (user?.googleAccessToken) {
         await revokeGoogleToken(user.googleAccessToken);
-        // Optional: hapus token Google di database
         await prisma.user.update({
           where: { id: userId },
           data: { googleAccessToken: null },
@@ -368,8 +362,6 @@ exports.logout = async (req, res) => {
       }
     }
 
-    // Karena sistem stateless, backend tidak menyimpan token, jadi logout cukup di frontend hapus token
-    // Di backend hanya menginformasikan logout berhasil
     res.json({ msg: "Logout berhasil, silakan hapus token di client" });
   } catch (err) {
     console.error(err);

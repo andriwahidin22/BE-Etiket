@@ -170,7 +170,11 @@ const generateTicketPDF = async (order, orderItems, user, outputPath) => {
             .text("E-Ticket Museum Lampung", 30, 30, { width: 350 });
 
           // Buat QR code unik per tiket: TICKET-<orderCode>-<ticketCode>-<noUrut>
-          const qrCodeString = `TICKET-${order.orderCode}-${item.ticket?.code || "NOCODE"}-${i + 1}`;
+          // Jika ada ticketInstances, gunakan qrCode dari ticketInstances, jika tidak fallback ke format lama
+          let qrCodeString = `TICKET-${order.orderCode}-${item.ticket?.code || "NOCODE"}-${i + 1}`;
+          if (item.ticketInstances && item.ticketInstances[i]) {
+            qrCodeString = item.ticketInstances[i].qrCode;
+          }
           const qrDataUrl = await QRCode.toDataURL(qrCodeString);
           const qrSize = 120;
           doc.image(qrDataUrl, doc.page.width - qrSize - 30, 30, {

@@ -1,3 +1,6 @@
+//file src/routes/auth/index.route.js
+
+
 const express = require("express");
 const router = express.Router();
 const passport = require("../../config/passport");
@@ -37,6 +40,11 @@ router.get(
   (req, res) => {
     const user = req.user;
     const jwt = require("jsonwebtoken");
+
+    // Ambil accessToken Google dari req.authInfo (tergantung konfigurasi passport)
+    // Pastikan passport Google strategy mengirimkan accessToken di authInfo
+    const googleAccessToken = req.authInfo?.accessToken || null;
+
     const token = jwt.sign(
       {
         id: user.id,
@@ -45,13 +53,19 @@ router.get(
         email: user.email,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1h" }
     );
 
-    // Redirect ke frontend callback dengan token sebagai query parameter
-    const frontendCallbackUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/auth/google/callback?token=${token}`;
+    // Encode tokens agar aman di URL
+    const encodedToken = encodeURIComponent(token);
+    const encodedGoogleAccessToken = encodeURIComponent(googleAccessToken);
+
+    // Redirect ke frontend dengan token JWT dan googleAccessToken sebagai query parameter
+    const frontendCallbackUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/auth/google/callback?token=${encodedToken}&googleAccessToken=${encodedGoogleAccessToken}`;
+
     res.redirect(frontendCallbackUrl);
   }
 );
+
 
 module.exports = router;

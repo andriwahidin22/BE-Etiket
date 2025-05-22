@@ -2,22 +2,30 @@
 
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
-const { snap, core } = require("../../config/midtrans"); // Konfigurasi Midtrans Anda
+const { snap, core } = require("../../config/midtrans"); // Konfigurasi Midtrans
 const path = require("path");
 const fs = require("fs");
 const nodemailer = require("nodemailer");
 const generateTicketPDF = require("../../utils/generateTicketPDF");
 
-// Fungsi kirim email dengan lampiran PDF tiket
+/**
+ * Fungsi untuk mengirim email dengan lampiran PDF tiket
+ * @param {string} to - Email tujuan
+ * @param {string} subject - Subjek email
+ * @param {string} text - Isi email dalam bentuk teks
+ * @param {string} attachmentPath - Path file PDF yang akan dilampirkan
+ */
 async function sendEmail(to, subject, text, attachmentPath) {
+  // Membuat transporter nodemailer dengan konfigurasi Gmail
   const transporter = nodemailer.createTransport({
-    service: "gmail", // Gunakan layanan email Anda
+    service: "gmail",
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      user: process.env.EMAIL_USER, // Email pengirim dari environment variable
+      pass: process.env.EMAIL_PASS, // Password email pengirim dari environment variable
     },
   });
 
+  // Opsi email yang akan dikirim
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to,
@@ -25,21 +33,27 @@ async function sendEmail(to, subject, text, attachmentPath) {
     text,
     attachments: [
       {
-        filename: path.basename(attachmentPath),
-        path: attachmentPath,
+        filename: path.basename(attachmentPath), // Nama file yang dilampirkan
+        path: attachmentPath, // Lokasi file PDF
       },
     ],
   };
 
+  // Kirim email
   await transporter.sendMail(mailOptions);
 }
 
-// Endpoint untuk memulai pembayaran
+/**
+ * Endpoint untuk memulai proses pembayaran
+ * Menerima userId, daftar tiket, dan tanggal kunjungan
+ * Menghitung total harga, membuat payment record dengan status PENDING,
+ * lalu membuat transaksi di Midtrans dan mengembalikan token dan URL redirect.
+ */
 exports.initiatePayment = async (req, res) => {
   try {
     const { userId, ticketList, visitDate } = req.body;
 
-    // Validasi user berdasarkan userId
+    // Validasi keberadaan user
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, email: true, fullName: true, phoneNumber: true },
@@ -48,10 +62,10 @@ exports.initiatePayment = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Hitung total harga dan siapkan detail tiket untuk Midtrans
     let totalAmount = 0;
-    const ticketDetails = [];
+    const itemDetails = [];
 
+    // Hitung total harga dan buat item details untuk Midtrans
     for (const item of ticketList) {
       const ticket = await prisma.ticket.findUnique({
         where: { id: item.ticketId },
@@ -65,7 +79,7 @@ exports.initiatePayment = async (req, res) => {
       const itemTotal = ticket.price * item.quantity;
       totalAmount += itemTotal;
 
-      ticketDetails.push({
+      itemDetails.push({
         id: ticket.id.toString(),
         name: `${ticket.type} Ticket`,
         price: ticket.price,
@@ -76,22 +90,21 @@ exports.initiatePayment = async (req, res) => {
     // Generate order ID unik untuk Midtrans
     const midtransOrderId = `MID-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    // Simpan record payment dengan status PENDING
+    // Simpan data payment dengan status PENDING
     const payment = await prisma.payment.create({
       data: {
         totalAmount,
         paymentStatus: "PENDING",
         midtransOrderId,
         transactionDate: new Date(),
-        userId: userId,
         visitDate: new Date(visitDate),
-        // Simpan detail tiket sebagai JSON string agar bisa dipakai saat notifikasi
-        // Jika Anda ingin, bisa buat field baru di model payment untuk ini
-        // Contoh: ticketDetails: JSON.stringify(ticketList)
+        user: {
+          connect: { id: userId },
+        },
       },
     });
 
-    // Siapkan parameter transaksi untuk Midtrans Snap
+    // Parameter transaksi untuk Midtrans
     const parameters = {
       transaction_details: {
         order_id: midtransOrderId,
@@ -105,13 +118,13 @@ exports.initiatePayment = async (req, res) => {
         email: user.email,
         phone: user.phoneNumber,
       },
-      item_details: ticketDetails,
+      item_details: itemDetails,
     };
 
-    // Buat transaksi Snap di Midtrans
+    // Buat transaksi di Midtrans
     const transaction = await snap.createTransaction(parameters);
 
-    // Update payment dengan snap token dan redirect URL
+    // Update payment dengan token dan redirect URL dari Midtrans
     await prisma.payment.update({
       where: { id: payment.id },
       data: {
@@ -120,7 +133,7 @@ exports.initiatePayment = async (req, res) => {
       },
     });
 
-    // Kirim response sukses dengan data token dan URL
+    // Kirim response sukses dengan data transaksi
     res.status(201).json({
       status: "success",
       message: "Payment initiated",
@@ -141,7 +154,12 @@ exports.initiatePayment = async (req, res) => {
   }
 };
 
-// Endpoint untuk menerima notifikasi pembayaran dari Midtrans
+/**
+ * Endpoint untuk menerima notifikasi dari Midtrans
+ * Memproses status pembayaran, update status payment,
+ * membuat order dan tiket jika pembayaran sukses,
+ * generate PDF tiket dan kirim email ke user.
+ */
 exports.handleNotification = async (req, res) => {
   try {
     const body = req.body;
@@ -166,12 +184,11 @@ exports.handleNotification = async (req, res) => {
 
     if (!payment) return res.status(404).send("Payment not found");
 
-    // Coba ambil status transaksi dari Midtrans Core API
+    // Cek status transaksi di Midtrans, fallback ke body jika error
     let statusResponse;
     try {
       statusResponse = await core.transaction.status(order_id);
     } catch (err) {
-      // Jika gagal, gunakan data notifikasi langsung
       statusResponse = body;
     }
 
@@ -185,7 +202,7 @@ exports.handleNotification = async (req, res) => {
     let paymentStatus = payment.paymentStatus;
     let shouldCreateOrder = false;
 
-    // Tentukan status pembayaran dan apakah perlu buat order
+    // Tentukan status payment berdasarkan status transaksi Midtrans
     if (transaction_status === "capture") {
       paymentStatus = fraud_status === "challenge" ? "CHALLENGE" : "SUCCESS";
       if (paymentStatus === "SUCCESS") shouldCreateOrder = true;
@@ -221,14 +238,12 @@ exports.handleNotification = async (req, res) => {
           },
         });
 
-        // Ambil detail tiket yang dibeli dari payment (Anda bisa simpan di payment saat initiate)
-        // Contoh fallback jika tidak ada data tiket di payment:
-        const purchasedTickets = payment.ticketDetails || [
-          { ticketId: 1, quantity: 1 },
-        ];
+        // Ambil ticketList dari body notifikasi (pastikan dikirim dari client)
+        // Catatan: Jika ticketList tidak dikirim di notifikasi, Anda perlu menyimpan data ini saat initiatePayment
+        const ticketList = body.ticketList || [];
 
-        // Buat order item dan ticket instance sesuai quantity tiket
-        for (const item of purchasedTickets) {
+        // Buat order items dan ticket instances
+        for (const item of ticketList) {
           const ticket = await tx.ticket.findUnique({ where: { id: item.ticketId } });
           if (!ticket) continue;
 
@@ -241,7 +256,7 @@ exports.handleNotification = async (req, res) => {
             },
           });
 
-          // Buat ticket instance (fisik tiket) dengan QR code unik
+          // Buat ticket instances dengan QR code unik
           for (let i = 0; i < item.quantity; i++) {
             const qrCode = `TICKET-${orderItem.id}-${i}-${Date.now()}`;
             await tx.ticketInstance.create({
@@ -254,7 +269,7 @@ exports.handleNotification = async (req, res) => {
           }
         }
 
-        // Ambil order lengkap dengan ticket instances untuk generate PDF
+        // Ambil order lengkap dengan item dan tiket
         const orderWithItems = await tx.order.findUnique({
           where: { id: newOrder.id },
           include: {
@@ -267,22 +282,17 @@ exports.handleNotification = async (req, res) => {
           },
         });
 
-        // Pastikan folder tickets ada
+        // Buat folder tickets jika belum ada
         const ticketsDir = path.join(__dirname, "../../../tickets");
         if (!fs.existsSync(ticketsDir)) {
           fs.mkdirSync(ticketsDir, { recursive: true });
         }
         const pdfPath = path.join(ticketsDir, `${newOrder.orderCode}.pdf`);
 
-        // Kumpulkan semua ticket instances dari semua order items
-        const allTicketInstances = orderWithItems.orderItems.flatMap(
-          (item) => item.ticketInstances
-        );
+        // Generate PDF tiket
+        await generateTicketPDF(orderWithItems, orderWithItems.orderItems, payment.user, pdfPath);
 
-        // Generate PDF tiket dengan QR code unik tiap tiket
-        await generateTicketPDF(orderWithItems, allTicketInstances, payment.user, pdfPath);
-
-        // Kirim email dengan lampiran PDF tiket
+        // Kirim email dengan lampiran tiket
         await sendEmail(
           payment.user.email,
           "E-Tiket Museum Lampung",
@@ -301,12 +311,14 @@ exports.handleNotification = async (req, res) => {
   }
 };
 
-// Endpoint untuk cek status pembayaran berdasarkan midtransOrderId
+/**
+ * Endpoint untuk cek status pembayaran berdasarkan midtransOrderId
+ * Mengembalikan status payment dan status transaksi Midtrans
+ */
 exports.checkPaymentStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
 
-    // Cari payment di database
     const payment = await prisma.payment.findUnique({
       where: { midtransOrderId: orderId },
       include: { order: true },
@@ -316,7 +328,6 @@ exports.checkPaymentStatus = async (req, res) => {
       return res.status(404).json({ message: "Payment not found" });
     }
 
-    // Optional: cek status di Midtrans
     let midtransStatus = null;
     try {
       const status = await core.transaction.status(orderId);
