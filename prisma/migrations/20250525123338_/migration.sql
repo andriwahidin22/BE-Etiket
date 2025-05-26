@@ -2,10 +2,15 @@
 CREATE TABLE `User` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `email` VARCHAR(191) NOT NULL,
-    `password` VARCHAR(191) NOT NULL,
+    `password` VARCHAR(191) NULL,
     `fullName` VARCHAR(191) NOT NULL DEFAULT 'Unknown',
     `phoneNumber` VARCHAR(191) NOT NULL DEFAULT '0000000000',
     `role` ENUM('ADMIN', 'BUYER') NOT NULL DEFAULT 'BUYER',
+    `isVerified` BOOLEAN NOT NULL DEFAULT false,
+    `verificationCode` VARCHAR(191) NULL,
+    `verificationCodeExpiresAt` DATETIME(3) NULL,
+    `resetPasswordCode` VARCHAR(191) NULL,
+    `resetPasswordExpiresAt` DATETIME(3) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -89,6 +94,19 @@ CREATE TABLE `OrderItem` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `TicketInstance` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `orderItemId` INTEGER NOT NULL,
+    `qrCode` VARCHAR(191) NOT NULL,
+    `attendanceStatus` ENUM('NOT_ARRIVED', 'ARRIVED', 'EXPIRED') NOT NULL DEFAULT 'NOT_ARRIVED',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `TicketInstance_qrCode_key`(`qrCode`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `Review` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `userId` INTEGER NOT NULL,
@@ -115,6 +133,9 @@ ALTER TABLE `OrderItem` ADD CONSTRAINT `OrderItem_orderId_fkey` FOREIGN KEY (`or
 
 -- AddForeignKey
 ALTER TABLE `OrderItem` ADD CONSTRAINT `OrderItem_ticketId_fkey` FOREIGN KEY (`ticketId`) REFERENCES `Ticket`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `TicketInstance` ADD CONSTRAINT `TicketInstance_orderItemId_fkey` FOREIGN KEY (`orderItemId`) REFERENCES `OrderItem`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Review` ADD CONSTRAINT `Review_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
