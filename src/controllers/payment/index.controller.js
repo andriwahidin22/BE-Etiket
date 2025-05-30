@@ -59,7 +59,9 @@ exports.initiatePayment = async (req, res) => {
       });
 
       if (!ticket) {
-        return res.status(400).json({ message: `Ticket ${item.ticketId} not found` });
+        return res
+          .status(400)
+          .json({ message: `Ticket ${item.ticketId} not found` });
       }
 
       const itemTotal = ticket.price * item.quantity;
@@ -74,7 +76,9 @@ exports.initiatePayment = async (req, res) => {
     }
 
     // Generate order ID unik untuk Midtrans
-    const midtransOrderId = `MID-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const midtransOrderId = `MID-${Date.now()}-${Math.floor(
+      Math.random() * 1000
+    )}`;
 
     // Simpan record payment dengan status PENDING
     const payment = await prisma.payment.create({
@@ -85,9 +89,7 @@ exports.initiatePayment = async (req, res) => {
         transactionDate: new Date(),
         userId: userId,
         visitDate: new Date(visitDate),
-        // Simpan detail tiket sebagai JSON string agar bisa dipakai saat notifikasi
-        // Jika Anda ingin, bisa buat field baru di model payment untuk ini
-        // Contoh: ticketDetails: JSON.stringify(ticketList)
+        ticketDetails: ticketList, // ✅ Simpan snapshot tiket
       },
     });
 
@@ -175,12 +177,8 @@ exports.handleNotification = async (req, res) => {
       statusResponse = body;
     }
 
-    const {
-      transaction_status,
-      fraud_status,
-      payment_type,
-      settlement_time,
-    } = statusResponse;
+    const { transaction_status, fraud_status, payment_type, settlement_time } =
+      statusResponse;
 
     let paymentStatus = payment.paymentStatus;
     let shouldCreateOrder = false;
@@ -221,15 +219,21 @@ exports.handleNotification = async (req, res) => {
           },
         });
 
-        // Ambil detail tiket yang dibeli dari payment (Anda bisa simpan di payment saat initiate)
-        // Contoh fallback jika tidak ada data tiket di payment:
-        const purchasedTickets = payment.ticketDetails || [
-          { ticketId: 1, quantity: 1 },
-        ];
+        const purchasedTickets = payment.ticketDetails;
 
         // Buat order item dan ticket instance sesuai quantity tiket
+        if (
+          !purchasedTickets ||
+          !Array.isArray(purchasedTickets) ||
+          purchasedTickets.length === 0
+        ) {
+          throw new Error("No valid ticketDetails found in payment.");
+        }
+
         for (const item of purchasedTickets) {
-          const ticket = await tx.ticket.findUnique({ where: { id: item.ticketId } });
+          const ticket = await tx.ticket.findUnique({
+            where: { id: item.ticketId },
+          });
           if (!ticket) continue;
 
           const orderItem = await tx.orderItem.create({
@@ -238,10 +242,10 @@ exports.handleNotification = async (req, res) => {
               ticketId: ticket.id,
               quantity: item.quantity,
               ticketPrice: ticket.price,
+              totalPrice: ticket.price * item.quantity, // ✅
             },
           });
 
-          // Buat ticket instance (fisik tiket) dengan QR code unik
           for (let i = 0; i < item.quantity; i++) {
             const qrCode = `TICKET-${orderItem.id}-${i}-${Date.now()}`;
             await tx.ticketInstance.create({
@@ -280,13 +284,20 @@ exports.handleNotification = async (req, res) => {
         );
 
         // Generate PDF tiket dengan QR code unik tiap tiket
-        await generateTicketPDF(orderWithItems, allTicketInstances, payment.user, pdfPath);
+        await generateTicketPDF(
+          orderWithItems,
+          allTicketInstances,
+          payment.user,
+          pdfPath
+        );
 
         // Kirim email dengan lampiran PDF tiket
         await sendEmail(
           payment.user.email,
           "E-Tiket Museum Lampung",
-          `Halo ${payment.user.fullName},\n\nPembayaran Anda telah berhasil. Berikut adalah e-tiket Anda untuk kunjungan pada ${new Date(
+          `Halo ${
+            payment.user.fullName
+          },\n\nPembayaran Anda telah berhasil. Berikut adalah e-tiket Anda untuk kunjungan pada ${new Date(
             orderWithItems.visitDate
           ).toLocaleDateString("id-ID")}.`,
           pdfPath
@@ -338,6 +349,43 @@ exports.checkPaymentStatus = async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Failed to check payment status",
+      error: error.message,
+    });
+  }
+};
+
+// Get all payments with user info
+exports.getAllPayments = async (req, res) => {
+  try {
+    const payments = await prisma.payment.findMany({
+      orderBy: { transactionDate: "desc" },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phoneNumber: true,
+          },
+        },
+        order: {
+          select: {
+            orderCode: true,
+            visitDate: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json({
+      status: "success",
+      data: payments,
+    });
+  } catch (error) {
+    console.error("Get payments error:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to retrieve payments",
       error: error.message,
     });
   }

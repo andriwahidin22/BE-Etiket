@@ -114,6 +114,8 @@ model Payment {
   userId          Int?
   visitDate       DateTime?
   user            User?           @relation(fields: [userId], references: [id])
+
+  ticketDetails   Json?
 }
 
 // ==== Order Item ====
@@ -123,6 +125,7 @@ model OrderItem {
   ticketId    Int
   quantity    Int
   ticketPrice Int
+  totalPrice  Int?
 
   order       Order            @relation(fields: [orderId], references: [id])
   ticket      Ticket           @relation(fields: [ticketId], references: [id])

@@ -20,5 +20,7 @@ router.post("/:id/resend-ticket", verifyToken, orderController.resendTicket);
 // Endpoint baru untuk validasi kehadiran berdasarkan kode pemesanan
 router.post("/validate-order", verifyToken, isAdmin, orderController.validateOrderByCode);
 
+// NOTE: Endpoint POST /orders untuk membuat order baru dihapus atau dinonaktifkan
+// Jika ingin tetap ada, pastikan hanya dipakai untuk membuat order baru, bukan untuk resend/download tiket
 
 module.exports = router;
