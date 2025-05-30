@@ -7,32 +7,7 @@ const path = require("path");
 const fs = require("fs");
 const nodemailer = require("nodemailer");
 const generateTicketPDF = require("../../utils/generateTicketPDF");
-
-// Fungsi kirim email dengan lampiran PDF tiket
-async function sendEmail(to, subject, text, attachmentPath) {
-  const transporter = nodemailer.createTransport({
-    service: "gmail", // Gunakan layanan email Anda
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to,
-    subject,
-    text,
-    attachments: [
-      {
-        filename: path.basename(attachmentPath),
-        path: attachmentPath,
-      },
-    ],
-  };
-
-  await transporter.sendMail(mailOptions);
-}
+const generateInvoicePDF = require("../../utils/generateInvoicePDF");
 
 // Endpoint untuk memulai pembayaran
 exports.initiatePayment = async (req, res) => {
@@ -89,7 +64,7 @@ exports.initiatePayment = async (req, res) => {
         transactionDate: new Date(),
         userId: userId,
         visitDate: new Date(visitDate),
-        ticketDetails: ticketList, // ✅ Simpan snapshot tiket
+        ticketDetails: ticketList, // Simpan snapshot tiket
       },
     });
 
@@ -151,7 +126,6 @@ exports.handleNotification = async (req, res) => {
 
     if (!order_id) return res.status(400).send("Missing order_id");
 
-    // Cari payment berdasarkan midtransOrderId
     const payment = await prisma.payment.findUnique({
       where: { midtransOrderId: order_id },
       include: {
@@ -168,22 +142,19 @@ exports.handleNotification = async (req, res) => {
 
     if (!payment) return res.status(404).send("Payment not found");
 
-    // Coba ambil status transaksi dari Midtrans Core API
+    // Ambil status transaksi dari Midtrans jika bisa
     let statusResponse;
     try {
       statusResponse = await core.transaction.status(order_id);
     } catch (err) {
-      // Jika gagal, gunakan data notifikasi langsung
-      statusResponse = body;
+      statusResponse = body; // fallback dari webhook payload
     }
 
-    const { transaction_status, fraud_status, payment_type, settlement_time } =
-      statusResponse;
+    const { transaction_status, fraud_status, payment_type, settlement_time } = statusResponse;
 
     let paymentStatus = payment.paymentStatus;
     let shouldCreateOrder = false;
 
-    // Tentukan status pembayaran dan apakah perlu buat order
     if (transaction_status === "capture") {
       paymentStatus = fraud_status === "challenge" ? "CHALLENGE" : "SUCCESS";
       if (paymentStatus === "SUCCESS") shouldCreateOrder = true;
@@ -194,7 +165,6 @@ exports.handleNotification = async (req, res) => {
       paymentStatus = "FAILED";
     }
 
-    // Update status payment di database
     await prisma.payment.update({
       where: { id: payment.id },
       data: {
@@ -205,10 +175,13 @@ exports.handleNotification = async (req, res) => {
       },
     });
 
-    // Jika pembayaran sukses dan order belum dibuat, buat order dan tiket
-    if (shouldCreateOrder && !payment.order) {
+    let newOrderId = null;
+
+    // Cek order sudah ada atau belum
+    const hasOrder = payment.order && (!Array.isArray(payment.order) || payment.order.length > 0);
+
+    if (shouldCreateOrder && !hasOrder) {
       await prisma.$transaction(async (tx) => {
-        // Buat order baru
         const newOrder = await tx.order.create({
           data: {
             orderCode: `ORD-${Date.now()}`,
@@ -219,21 +192,15 @@ exports.handleNotification = async (req, res) => {
           },
         });
 
-        const purchasedTickets = payment.ticketDetails;
+        newOrderId = newOrder.id;
 
-        // Buat order item dan ticket instance sesuai quantity tiket
-        if (
-          !purchasedTickets ||
-          !Array.isArray(purchasedTickets) ||
-          purchasedTickets.length === 0
-        ) {
+        const purchasedTickets = payment.ticketDetails;
+        if (!purchasedTickets || !Array.isArray(purchasedTickets) || purchasedTickets.length === 0) {
           throw new Error("No valid ticketDetails found in payment.");
         }
 
         for (const item of purchasedTickets) {
-          const ticket = await tx.ticket.findUnique({
-            where: { id: item.ticketId },
-          });
+          const ticket = await tx.ticket.findUnique({ where: { id: item.ticketId } });
           if (!ticket) continue;
 
           const orderItem = await tx.orderItem.create({
@@ -242,12 +209,13 @@ exports.handleNotification = async (req, res) => {
               ticketId: ticket.id,
               quantity: item.quantity,
               ticketPrice: ticket.price,
-              totalPrice: ticket.price * item.quantity, // ✅
+              totalPrice: ticket.price * item.quantity,
             },
           });
 
+          // Generate ticketInstances sesuai quantity
           for (let i = 0; i < item.quantity; i++) {
-            const qrCode = `TICKET-${orderItem.id}-${i}-${Date.now()}`;
+            const qrCode = `TICKET-${orderItem.id}-${i}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
             await tx.ticketInstance.create({
               data: {
                 orderItemId: orderItem.id,
@@ -257,52 +225,68 @@ exports.handleNotification = async (req, res) => {
             });
           }
         }
+      });
 
-        // Ambil order lengkap dengan ticket instances untuk generate PDF
-        const orderWithItems = await tx.order.findUnique({
-          where: { id: newOrder.id },
-          include: {
-            orderItems: {
-              include: {
-                ticket: true,
-                ticketInstances: true,
-              },
+      // Ambil kembali order dengan semua relasi untuk generate PDF dan kirim email
+      const orderWithItems = await prisma.order.findUnique({
+        where: { id: newOrderId },
+        include: {
+          orderItems: {
+            include: {
+              ticket: true,
+              ticketInstances: true,
             },
           },
-        });
-
-        // Pastikan folder tickets ada
-        const ticketsDir = path.join(__dirname, "../../../tickets");
-        if (!fs.existsSync(ticketsDir)) {
-          fs.mkdirSync(ticketsDir, { recursive: true });
-        }
-        const pdfPath = path.join(ticketsDir, `${newOrder.orderCode}.pdf`);
-
-        // Kumpulkan semua ticket instances dari semua order items
-        const allTicketInstances = orderWithItems.orderItems.flatMap(
-          (item) => item.ticketInstances
-        );
-
-        // Generate PDF tiket dengan QR code unik tiap tiket
-        await generateTicketPDF(
-          orderWithItems,
-          allTicketInstances,
-          payment.user,
-          pdfPath
-        );
-
-        // Kirim email dengan lampiran PDF tiket
-        await sendEmail(
-          payment.user.email,
-          "E-Tiket Museum Lampung",
-          `Halo ${
-            payment.user.fullName
-          },\n\nPembayaran Anda telah berhasil. Berikut adalah e-tiket Anda untuk kunjungan pada ${new Date(
-            orderWithItems.visitDate
-          ).toLocaleDateString("id-ID")}.`,
-          pdfPath
-        );
+        },
       });
+
+      // Gabungkan semua ticketInstances dari semua orderItems
+      const allTicketInstances = orderWithItems.orderItems.flatMap(item => item.ticketInstances);
+
+      // Pastikan direktori ada
+      const invoicesDir = path.join(__dirname, "../../../invoices");
+      const ticketsDir = path.join(__dirname, "../../../tickets");
+      if (!fs.existsSync(invoicesDir)) fs.mkdirSync(invoicesDir, { recursive: true });
+      if (!fs.existsSync(ticketsDir)) fs.mkdirSync(ticketsDir, { recursive: true });
+
+      const invoicePath = path.join(invoicesDir, `${orderWithItems.orderCode}_invoice.pdf`);
+      const ticketPath = path.join(ticketsDir, `${orderWithItems.orderCode}_tickets.pdf`);
+
+      // Generate PDF tiket & invoice
+      await generateTicketPDF(orderWithItems, orderWithItems.orderItems, allTicketInstances, payment.user, ticketPath);
+      const invoiceBuffer = await generateInvoicePDF(orderWithItems, payment.user);
+      fs.writeFileSync(invoicePath, invoiceBuffer);
+
+      // Validasi environment variables email
+      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.error("EMAIL_USER or EMAIL_PASS env variable not set!");
+        throw new Error("Email configuration missing");
+      }
+
+      // Kirim email dengan invoice dan tiket
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: payment.user.email,
+          subject: "Invoice dan E-Tiket Museum Lampung",
+          text: `Halo ${payment.user.fullName},\n\nPembayaran Anda telah berhasil. Berikut adalah invoice dan e-tiket Anda untuk kunjungan pada ${new Date(orderWithItems.visitDate).toLocaleDateString("id-ID")}.`,
+          attachments: [
+            { filename: path.basename(invoicePath), path: invoicePath },
+            { filename: path.basename(ticketPath), path: ticketPath },
+          ],
+        });
+        console.log(`📧 Email sent to ${payment.user.email}`);
+      } catch (emailErr) {
+        console.error("❌ Failed to send email:", emailErr);
+      }
     }
 
     res.status(200).send("OK");
@@ -374,43 +358,6 @@ exports.getAllPayments = async (req, res) => {
             visitDate: true,
           },
         },
-      },
-    });
-
-    res.status(200).json({
-      status: "success",
-      data: payments,
-    });
-  } catch (error) {
-    console.error("Get payments error:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Failed to retrieve payments",
-      error: error.message,
-    });
-  }
-};
-
-// Get all payments with user info
-exports.getAllPayments = async (req, res) => {
-  try {
-    const payments = await prisma.payment.findMany({
-      orderBy: { transactionDate: 'desc' },
-      include: {
-        user: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            phoneNumber: true,
-          },
-        },
-        order: {
-          select: {
-            orderCode: true,
-            visitDate: true,
-          }
-        }
       },
     });
 

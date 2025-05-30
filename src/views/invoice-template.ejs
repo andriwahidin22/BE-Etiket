@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Invoice Museum Lampung</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
+    h1 { color: #003366; }
+    .header, .footer { text-align: center; }
+    .info, .items { margin-top: 30px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 10px; border: 1px solid #ccc; text-align: left; }
+    th { background-color: #f0f0f0; }
+    .total { font-weight: bold; text-align: right; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Invoice</h1>
+    <p>Museum Lampung</p>
+  </div>
+
+  <div class="info">
+    <p><strong>Invoice untuk:</strong> <%= user.fullName %></p>
+    <p><strong>Email:</strong> <%= user.email %></p>
+    <p><strong>Order Code:</strong> <%= order.orderCode %></p>
+    <p><strong>Tanggal Kunjungan:</strong> <%= new Date(order.visitDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) %></p>
+  </div>
+
+  <div class="items">
+    <table>
+      <thead>
+        <tr>
+          <th>Nama Tiket</th>
+          <th>Jumlah</th>
+          <th>Harga</th>
+          <th>Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% let grandTotal = 0; %>
+        <% order.orderItems.forEach(item => { %>
+          <% const qty = Number(item.quantity) || 0; %>
+          <% const price = Number(item.ticketPrice) || 0; %>
+          <% const subtotal = qty * price; %>
+          <% grandTotal += subtotal; %>
+          <tr>
+            <td><%= item.ticket?.type || 'Tiket' %></td>
+            <td><%= qty %></td>
+            <td>Rp <%= price.toLocaleString('id-ID') %></td>
+            <td>Rp <%= subtotal.toLocaleString('id-ID') %></td>
+          </tr>
+        <% }); %>
+        <tr>
+          <td colspan="3" class="total">Total</td>
+          <td><strong>Rp <%= grandTotal.toLocaleString('id-ID') %></strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <p>Terima kasih telah berkunjung ke Museum Lampung.</p>
+    <p>Invoice ini adalah bukti pembayaran yang sah.</p>
+  </div>
+</body>
+</html>
