@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>E-Ticket Museum Lampung</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    color: #003366;
+    margin: 20px;
+  }
+  header {
+    background-color: #FFB81C;
+    color: white;
+    padding: 10px;
+    border-radius: 10px;
+  }
+  .qr {
+    float: right;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  th, td {
+    border: 1px solid #FFB81C;
+    padding: 8px;
+    text-align: left;
+  }
+  th {
+    background-color: #FFB81C;
+    color: #003366;
+  }
+  footer {
+    margin-top: 30px;
+    font-style: italic;
+    font-size: 12px;
+    text-align: center;
+    color: gray;
+  }
+</style>
+
+</head>
+<body>
+  <header>
+    <h1>E-Ticket Museum Lampung</h1>
+    <div class="qr">
+      <img src="<%= qrCodeDataUrl %>" alt="QR Code" width="120" />
+    </div>
+  </header>
+  <section>
+    <p><strong>Order Code:</strong> <%= order.orderCode %></p>
+    <p><strong>Visitor:</strong> <%= order.visitorName %></p>
+    <p><strong>Visit Date:</strong> <%= new Date(order.visitDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) %></p>
+    <p><strong>Email:</strong> <%= user.email %></p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Type</th>
+          <th>Qty</th>
+          <th>Price</th>
+          <th>Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% let total = 0; %>
+        <% orderItems.forEach(item => { %>
+          <% let qty = Number(item.quantity) || 0; %>
+          <% let price = Number(item.ticketPrice) || 0; %>
+          <% let subtotal = qty * price; %>
+          <% total += subtotal; %>
+          <tr>
+            <td><%= item.ticket?.code || 'N/A' %></td>
+            <td><%= item.ticket?.type || 'N/A' %></td>
+            <td><%= qty %></td>
+            <td>Rp <%= price.toLocaleString('id-ID') %></td>
+            <td>Rp <%= subtotal.toLocaleString('id-ID') %></td>
+          </tr>
+        <% }) %>
+        <tr>
+          <td colspan="4" style="text-align:right; font-weight:bold;">Total</td>
+          <td>Rp <%= total.toLocaleString('id-ID') %></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer>
+    Harap tunjukkan tiket ini saat masuk ke Museum Lampung. Tiket hanya berlaku sesuai tanggal yang tertera.
+  </footer>
+</body>
+</html>
