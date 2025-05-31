@@ -1,57 +1,74 @@
 <!DOCTYPE html>
 <html lang="id">
-<head>
-  <meta charset="UTF-8" />
-  <title>E-Ticket Museum Lampung</title>
-  <style>
-    body { font-family: Arial, sans-serif; color: #003366; margin: 0; padding: 0; }
-    .ticket {
-      width: 100%;
-      height: 200px;
-      border: 2px solid #FFB81C;
-      margin-bottom: 20px;
-      border-radius: 10px;
-      padding: 15px;
-      page-break-inside: avoid;
-    }
-    header {
-      padding: 5px 10px;
-      border-radius: 5px;
-      color: white;
-      font-weight: bold;
-      font-size: 18px;
-      margin-bottom: 10px;
-    }
-    .qr {
-      float: right;
-      width: 120px;
-      height: 120px;
-    }
-    .info {
-      margin-top: 10px;
-    }
-    .info p {
-      margin: 2px 0;
-    }
-  </style>
-</head>
-<body>
-  <% ticketsToRender.forEach(ticket => { %>
+  <head>
+    <meta charset="UTF-8" />
+    <title>E-Ticket Museum Lampung</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        color: #003366;
+        margin: 20px;
+      }
+      header {
+        background-color: #ffb81c;
+        color: white;
+        padding: 10px;
+        border-radius: 10px;
+      }
+      .qr {
+        float: right;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      th,
+      td {
+        border: 1px solid #ffb81c;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #ffb81c;
+        color: #003366;
+      }
+      footer {
+        margin-top: 30px;
+        font-style: italic;
+        font-size: 12px;
+        text-align: center;
+        color: gray;
+      }
+    </style>
+  </head>
+  <body>
+    <% ticketsToRender.forEach(ticket => { %>
     <div class="ticket">
-      <header style="background-color:<%= ticket.color %>;">
+      <header>
         <%= ticket.ticketType %> - <%= ticket.ticketCode %>
       </header>
       <div class="qr">
-        <img src="https://api.qrserver.com/v1/create-qr-code/?data=<%= encodeURIComponent(ticket.qrCode) %>&size=120x120" alt="QR Code" />
+        <img
+          src="https://api.qrserver.com/v1/create-qr-code/?data=<%= encodeURIComponent(ticket.qrCode) %>&size=120x120"
+          alt="QR Code"
+        />
       </div>
       <div class="info">
         <p><strong>Order Code:</strong> <%= order.orderCode %></p>
         <p><strong>Visitor:</strong> <%= order.visitorName %></p>
-        <p><strong>Visit Date:</strong> <%= new Date(order.visitDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) %></p>
+        <p>
+          <strong>Visit Date:</strong> <%= new
+          Date(order.visitDate).toLocaleDateString('id-ID', { day: 'numeric',
+          month: 'long', year: 'numeric' }) %>
+        </p>
         <p><strong>Email:</strong> <%= user.email %></p>
-        <p><strong>Price:</strong> Rp <%= ticket.ticketPrice.toLocaleString('id-ID') %></p>
+        <p>
+          <strong>Price:</strong> Rp <%=
+          ticket.ticketPrice.toLocaleString('id-ID') %>
+        </p>
       </div>
     </div>
-  <% }) %>
-</body>
+    <% }) %>
+  </body>
 </html>

@@ -1,4 +1,3 @@
-// File: src/routes/api.route.js
 const express = require("express");
 const router = express.Router();
 
@@ -31,5 +30,11 @@ router.use("/admin/users", adminUserRoutes);
 // User Routes (for profile editing etc.)
 const userRoutes = require("./users/index.route");
 router.use("/users", userRoutes);
+
+// Gallery Routes — **TAMBAHKAN INI**
+router.use("/gallery", require("./gallery/index.route"));
+
+// Tambahkan ini:
+router.use("/admin/reports", require("./admin/reportRoutes/index.route"));
 
 module.exports = router;

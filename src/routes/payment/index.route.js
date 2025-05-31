@@ -3,7 +3,7 @@
 const express = require("express");
 const router = express.Router();
 const paymentController = require("../../controllers/payment/index.controller");
-const { verifyToken } = require("../../middleware/auth");
+const { verifyToken, isAdmin } = require("../../middleware/auth");
 
 // Initiate payment (protected)
 router.post("/", verifyToken, paymentController.initiatePayment);
