@@ -1,8 +1,5 @@
-//src/utils/generateTicketPDF.js
-
+// src/utils/generateTicketPDF.js
 const ejs = require("ejs");
-const QRCode = require("qrcode");
-const fs = require("fs");
 const path = require("path");
 const puppeteer = require("puppeteer");
 
@@ -15,9 +12,17 @@ function getColorForType(type) {
   return typeColors[type] || "#CCCCCC";
 }
 
-const generateTicketPDF = async (order, orderItems, ticketInstances, user, outputPath) => {
+const generateTicketPDF = async ({
+  order,
+  orderItems,
+  ticketInstances,
+  user,
+  outputPath,
+}) => {
   try {
-    // Buat array ticketsToRender gabungkan orderItems dengan ticketInstances
+    if (!Array.isArray(orderItems)) orderItems = [];
+    if (!Array.isArray(ticketInstances)) ticketInstances = [];
+
     let ticketsToRender = [];
 
     for (const orderItem of orderItems) {
@@ -36,29 +41,26 @@ const generateTicketPDF = async (order, orderItems, ticketInstances, user, outpu
       }
     }
 
-    // Generate QR code untuk orderCode (bisa juga generate per tiket kalau perlu)
-    // Tapi kita pakai QR per tiketInstance, jadi QR tiap tiketInstance sudah unik dan di HTML
-    // Jadi tidak perlu buat QR code di sini
-
-    // Render template EJS jadi HTML, kirim ticketsToRender array
-    const templatePath = path.resolve(__dirname, "../views/ticket-template.ejs");
+    const templatePath = path.resolve(
+      __dirname,
+      "../views/ticket-template.ejs"
+    );
     const html = await ejs.renderFile(templatePath, {
       order,
       ticketsToRender,
       user,
     });
 
-    // Launch puppeteer dan convert HTML ke PDF
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
 
     await page.setContent(html, { waitUntil: "networkidle0" });
     await page.pdf({
       path: outputPath,
-      format: "A5",
-      landscape: true,
+      width: "143mm", // Match template width
+      height: "50mm", // Match template height
       printBackground: true,
-      margin: { top: "20px", bottom: "20px", left: "20px", right: "20px" },
+      margin: { top: "0mm", bottom: "0mm", left: "0mm", right: "0mm" },
     });
 
     await browser.close();

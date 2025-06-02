@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Laporan Ulasan</title>
+  <style>
+    /* Reset margin & padding */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      padding: 30px 40px;
+      color: #222;
+      background-color: #fff;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    h1 {
+      font-size: 26px;
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: #2c3e50;
+      letter-spacing: 1.1px;
+    }
+
+    .summary {
+      text-align: center;
+      font-size: 15px;
+      margin-bottom: 25px;
+      color: #34495e;
+    }
+
+    .summary strong {
+      color: #2c3e50;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #bdc3c7;
+      font-size: 13px;
+    }
+
+    thead {
+      background-color: #ecf0f1;
+    }
+
+    th, td {
+      border: 1px solid #bdc3c7;
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+      word-wrap: break-word;
+      max-width: 100%;
+    }
+
+    th {
+      font-weight: 600;
+      color: #2c3e50;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    tbody tr:hover {
+      background-color: #f9f9f9;
+    }
+
+    /* Kolom lebar dinamis dengan minimal width dan max width */
+    td:nth-child(1) {
+      min-width: 120px;
+      max-width: 180px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    td:nth-child(2) {
+      width: 90px;
+      white-space: nowrap;
+    }
+
+    td:nth-child(3) {
+      max-width: 450px;
+      /* komentar bisa panjang, biar bisa wrap */
+    }
+
+    td:nth-child(4) {
+      width: 140px;
+      white-space: nowrap;
+    }
+
+    /* Star rating */
+    .stars {
+      color: #d4af37; /* Warna emas */
+      font-size: 14px;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    .stars .empty {
+      color: #dcdcdc; /* Warna bintang kosong */
+    }
+  </style>
+</head>
+<body>
+  <h1>Laporan Ulasan</h1>
+
+  <p class="summary">
+    <strong>Rata-rata Rating:</strong> <%= averageRating.toFixed(1) %> &nbsp;&nbsp;
+    <span class="stars">
+      <% for(let i = 1; i <= 5; i++) { %>
+        <% if(i <= Math.round(averageRating)) { %>
+          &#9733; <!-- bintang penuh -->
+        <% } else { %>
+          <span class="empty">&#9733;</span> <!-- bintang kosong -->
+        <% } %>
+      <% } %>
+    </span>
+  </p>
+
+  <p class="summary">
+    <strong>Total Ulasan:</strong> <%= reviews.length %>
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Nama Pengguna</th>
+        <th>Rating</th>
+        <th>Komentar</th>
+        <th>Tanggal</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% reviews.forEach(review => { %>
+        <tr>
+          <td title="<%= review.user.fullName %>"><%= review.user.fullName %></td>
+          <td>
+            <span class="stars">
+              <% for(let i = 1; i <= 5; i++) { %>
+                <% if(i <= review.score) { %>
+                  &#9733;
+                <% } else { %>
+                  <span class="empty">&#9733;</span>
+                <% } %>
+              <% } %>
+            </span>
+            &nbsp;(<%= review.score %>)
+          </td>
+          <td><%= review.comment ? review.comment : '-' %></td>
+          <td><%= new Date(review.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</body>
+</html>

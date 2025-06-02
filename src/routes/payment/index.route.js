@@ -17,12 +17,14 @@ router.get("/status/:orderId", verifyToken, paymentController.checkPaymentStatus
 // Get all payments (admin only)
 router.get("/", verifyToken, isAdmin, paymentController.getAllPayments);
 
+// get payments untuk user
+router.get("/my-payments", verifyToken, paymentController.getUserPayments);
+
 router.post("/notification", 
   express.json({ type: 'application/json' }),
   paymentController.handleNotification
 );
 
-router.post("/", verifyToken, paymentController.initiatePayment);
 router.get("/status/:orderId", verifyToken, paymentController.checkPaymentStatus);
 
 module.exports = router;

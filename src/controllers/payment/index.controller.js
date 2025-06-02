@@ -2,7 +2,7 @@
 
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
-const { snap, core } = require("../../config/midtrans"); // Konfigurasi Midtrans Anda
+const { snap, core } = require("../../config/midtrans");
 const path = require("path");
 const fs = require("fs");
 const nodemailer = require("nodemailer");
@@ -150,7 +150,8 @@ exports.handleNotification = async (req, res) => {
       statusResponse = body; // fallback dari webhook payload
     }
 
-    const { transaction_status, fraud_status, payment_type, settlement_time } = statusResponse;
+    const { transaction_status, fraud_status, payment_type, settlement_time } =
+      statusResponse;
 
     let paymentStatus = payment.paymentStatus;
     let shouldCreateOrder = false;
@@ -178,7 +179,9 @@ exports.handleNotification = async (req, res) => {
     let newOrderId = null;
 
     // Cek order sudah ada atau belum
-    const hasOrder = payment.order && (!Array.isArray(payment.order) || payment.order.length > 0);
+    const hasOrder =
+      payment.order &&
+      (!Array.isArray(payment.order) || payment.order.length > 0);
 
     if (shouldCreateOrder && !hasOrder) {
       await prisma.$transaction(async (tx) => {
@@ -195,12 +198,18 @@ exports.handleNotification = async (req, res) => {
         newOrderId = newOrder.id;
 
         const purchasedTickets = payment.ticketDetails;
-        if (!purchasedTickets || !Array.isArray(purchasedTickets) || purchasedTickets.length === 0) {
+        if (
+          !purchasedTickets ||
+          !Array.isArray(purchasedTickets) ||
+          purchasedTickets.length === 0
+        ) {
           throw new Error("No valid ticketDetails found in payment.");
         }
 
         for (const item of purchasedTickets) {
-          const ticket = await tx.ticket.findUnique({ where: { id: item.ticketId } });
+          const ticket = await tx.ticket.findUnique({
+            where: { id: item.ticketId },
+          });
           if (!ticket) continue;
 
           const orderItem = await tx.orderItem.create({
@@ -215,7 +224,9 @@ exports.handleNotification = async (req, res) => {
 
           // Generate ticketInstances sesuai quantity
           for (let i = 0; i < item.quantity; i++) {
-            const qrCode = `TICKET-${orderItem.id}-${i}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            const qrCode = `TICKET-${
+              orderItem.id
+            }-${i}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
             await tx.ticketInstance.create({
               data: {
                 orderItemId: orderItem.id,
@@ -241,20 +252,40 @@ exports.handleNotification = async (req, res) => {
       });
 
       // Gabungkan semua ticketInstances dari semua orderItems
-      const allTicketInstances = orderWithItems.orderItems.flatMap(item => item.ticketInstances);
+      const allTicketInstances = orderWithItems.orderItems.flatMap(
+        (item) => item.ticketInstances
+      );
 
       // Pastikan direktori ada
       const invoicesDir = path.join(__dirname, "../../../invoices");
       const ticketsDir = path.join(__dirname, "../../../tickets");
-      if (!fs.existsSync(invoicesDir)) fs.mkdirSync(invoicesDir, { recursive: true });
-      if (!fs.existsSync(ticketsDir)) fs.mkdirSync(ticketsDir, { recursive: true });
+      if (!fs.existsSync(invoicesDir))
+        fs.mkdirSync(invoicesDir, { recursive: true });
+      if (!fs.existsSync(ticketsDir))
+        fs.mkdirSync(ticketsDir, { recursive: true });
 
-      const invoicePath = path.join(invoicesDir, `${orderWithItems.orderCode}_invoice.pdf`);
-      const ticketPath = path.join(ticketsDir, `${orderWithItems.orderCode}_tickets.pdf`);
+      const invoicePath = path.join(
+        invoicesDir,
+        `${orderWithItems.orderCode}_invoice.pdf`
+      );
+      const ticketPath = path.join(
+        ticketsDir,
+        `${orderWithItems.orderCode}_tickets.pdf`
+      );
 
       // Generate PDF tiket & invoice
-      await generateTicketPDF(orderWithItems, orderWithItems.orderItems, allTicketInstances, payment.user, ticketPath);
-      const invoiceBuffer = await generateInvoicePDF(orderWithItems, payment.user);
+      await generateTicketPDF({
+        order: orderWithItems,
+        orderItems: orderWithItems.orderItems,
+        ticketInstances: allTicketInstances,
+        user: payment.user,
+        outputPath: ticketPath,
+      });
+
+      const invoiceBuffer = await generateInvoicePDF(
+        orderWithItems,
+        payment.user
+      );
       fs.writeFileSync(invoicePath, invoiceBuffer);
 
       // Validasi environment variables email
@@ -277,7 +308,11 @@ exports.handleNotification = async (req, res) => {
           from: process.env.EMAIL_USER,
           to: payment.user.email,
           subject: "Invoice dan E-Tiket Museum Lampung",
-          text: `Halo ${payment.user.fullName},\n\nPembayaran Anda telah berhasil. Berikut adalah invoice dan e-tiket Anda untuk kunjungan pada ${new Date(orderWithItems.visitDate).toLocaleDateString("id-ID")}.`,
+          text: `Halo ${
+            payment.user.fullName
+          },\n\nPembayaran Anda telah berhasil. Berikut adalah invoice dan e-tiket Anda untuk kunjungan pada ${new Date(
+            orderWithItems.visitDate
+          ).toLocaleDateString("id-ID")}.`,
           attachments: [
             { filename: path.basename(invoicePath), path: invoicePath },
             { filename: path.basename(ticketPath), path: ticketPath },
@@ -370,6 +405,38 @@ exports.getAllPayments = async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Failed to retrieve payments",
+      error: error.message,
+    });
+  }
+};
+
+// Ambil semua payment milik user yang sedang login
+exports.getUserPayments = async (req, res) => {
+  try {
+    const userId = req.user.id; // diasumsikan middleware verifyToken sudah attach `req.user`
+
+    const payments = await prisma.payment.findMany({
+      where: { userId },
+      orderBy: { transactionDate: "desc" },
+      include: {
+        order: {
+          select: {
+            orderCode: true,
+            visitDate: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json({
+      status: "success",
+      data: payments,
+    });
+  } catch (error) {
+    console.error("Get user payments error:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to retrieve user payments",
       error: error.message,
     });
   }

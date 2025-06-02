@@ -38,7 +38,9 @@ exports.getOrderById = async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
     if (isNaN(orderId)) {
-      return res.status(400).json({ status: "error", message: "ID order tidak valid" });
+      return res
+        .status(400)
+        .json({ status: "error", message: "ID order tidak valid" });
     }
 
     const order = await prisma.order.findUnique({
@@ -50,7 +52,9 @@ exports.getOrderById = async (req, res) => {
     });
 
     if (!order) {
-      return res.status(404).json({ status: "error", message: "Order tidak ditemukan" });
+      return res
+        .status(404)
+        .json({ status: "error", message: "Order tidak ditemukan" });
     }
 
     res.status(200).json({ status: "success", data: order });
@@ -60,75 +64,114 @@ exports.getOrderById = async (req, res) => {
   }
 };
 
-// Download PDF tiket berdasarkan order ID
+// Download PDF tiket berdasarkan order ID, hanya untuk pemilik order
 exports.downloadTicket = async (req, res) => {
   try {
-    const orderId = parseInt(req.params.id);
-    if (isNaN(orderId)) {
-      return res.status(400).json({ status: "error", message: "ID order tidak valid" });
+    const { id } = req.params;
+
+    console.log("✅ Raw orderId from params:", id);
+
+    if (!id || isNaN(Number(id))) {
+      console.error("❌ orderId is invalid:", id);
+      return res.status(400).json({ message: "Invalid orderId parameter" });
     }
+
+    const orderId = parseInt(id);
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
-        orderItems: { include: { ticket: true, ticketInstances: true } },
-        user: { select: { email: true, fullName: true } },
+        orderItems: {
+          include: {
+            ticket: true,
+            ticketInstances: true,
+          },
+        },
+        user: true,
       },
     });
 
     if (!order) {
-      return res.status(404).json({ status: "error", message: "Order tidak ditemukan" });
+      console.error("❌ Order not found for id:", orderId);
+      return res.status(404).json({ message: "Order not found" });
     }
 
-    // Pastikan folder tickets ada
-    const ticketsDir = path.join(__dirname, "../../..", "tickets");
+    // ✅ Hindari error jika ticketInstances null/undefined
+    const allTicketInstances = order.orderItems.flatMap(
+      (item) => item.ticketInstances || []
+    );
+
+    const ticketsDir = path.join(__dirname, "../../../tickets");
     if (!fs.existsSync(ticketsDir)) {
       fs.mkdirSync(ticketsDir, { recursive: true });
     }
 
-    const pdfPath = path.join(ticketsDir, `${order.orderCode}.pdf`);
+    const pdfPath = path.join(ticketsDir, `${order.orderCode}_tickets.pdf`);
 
-    // Generate ulang PDF tiket agar desain terbaru selalu dipakai
-    // Kumpulkan semua ticket instances dari order items
-    const allTicketInstances = order.orderItems.flatMap((item) => item.ticketInstances);
+    // ✅ Pastikan parameter lengkap saat memanggil generateTicketPDF
+    await generateTicketPDF(
+      order,
+      order.orderItems,
+      allTicketInstances,
+      order.user,
+      pdfPath
+    );
 
-    await generateTicketPDF(order, allTicketInstances, order.user, pdfPath);
-
-    // Kirim file PDF sebagai attachment download
-    res.setHeader("Content-Disposition", `attachment; filename=${order.orderCode}.pdf`);
-    res.setHeader("Content-Type", "application/pdf");
-
-    const fileStream = fs.createReadStream(pdfPath);
-    fileStream.pipe(res);
+    // ✅ Kirim file ke browser
+    res.download(pdfPath, `${order.orderCode}_tickets.pdf`, (err) => {
+      if (err) {
+        console.error("❌ Download ticket failed:", err);
+        res
+          .status(500)
+          .json({ status: "error", message: "Failed to download ticket PDF" });
+      }
+    });
   } catch (error) {
-    console.error("Download ticket failed:", error);
+    console.error("❌ Download ticket failed:", error);
     res.status(500).json({ status: "error", message: error.message });
   }
 };
 
-// Kirim ulang tiket ke email yang ditentukan
+
+// Kirim ulang tiket ke email, hanya untuk pemilik order
 exports.resendTicket = async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
     const { email } = req.body;
+    const userId = req.user.id; // asumsi sudah ada dari middleware auth
 
     if (isNaN(orderId)) {
-      return res.status(400).json({ status: "error", message: "ID order tidak valid" });
+      return res
+        .status(400)
+        .json({ status: "error", message: "ID order tidak valid" });
     }
     if (!email || typeof email !== "string" || !email.includes("@")) {
-      return res.status(400).json({ status: "error", message: "Email tidak valid" });
+      return res
+        .status(400)
+        .json({ status: "error", message: "Email tidak valid" });
     }
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
         orderItems: { include: { ticket: true, ticketInstances: true } },
-        user: { select: { fullName: true, email: true } },
+        user: { select: { id: true, fullName: true, email: true } },
+        payment: true,
       },
     });
 
     if (!order) {
-      return res.status(404).json({ status: "error", message: "Order tidak ditemukan" });
+      return res
+        .status(404)
+        .json({ status: "error", message: "Order tidak ditemukan" });
+    }
+
+    // Cek apakah pemilik order sama dengan user yang request
+    if (order.user.id !== userId) {
+      return res.status(403).json({
+        status: "error",
+        message: "Anda tidak memiliki akses untuk mengirim ulang tiket ini",
+      });
     }
 
     // Pastikan folder tickets ada
@@ -140,8 +183,16 @@ exports.resendTicket = async (req, res) => {
     const pdfPath = path.join(ticketsDir, `${order.orderCode}.pdf`);
 
     // Generate ulang PDF tiket agar desain terbaru selalu dipakai
-    const allTicketInstances = order.orderItems.flatMap((item) => item.ticketInstances);
-    await generateTicketPDF(order, allTicketInstances, order.user, pdfPath);
+    const allTicketInstances = order.orderItems.flatMap(
+      (item) => item.ticketInstances
+    );
+    await generateTicketPDF({
+      order,
+      orderItems,
+      ticketInstances,
+      user,
+      outputPath,
+    });
 
     // Kirim email ke alamat yang diminta dengan lampiran tiket
     await sendEmail(
@@ -187,10 +238,14 @@ exports.validateOrderByCode = async (req, res) => {
     const { orderCode, status } = req.body;
 
     if (!orderCode || typeof orderCode !== "string") {
-      return res.status(400).json({ status: "error", message: "Kode pemesanan tidak valid" });
+      return res
+        .status(400)
+        .json({ status: "error", message: "Kode pemesanan tidak valid" });
     }
     if (!["ARRIVED", "NOT_ARRIVED", "CANCELLED"].includes(status)) {
-      return res.status(400).json({ status: "error", message: "Status tidak valid" });
+      return res
+        .status(400)
+        .json({ status: "error", message: "Status tidak valid" });
     }
 
     // Cari order berdasarkan orderCode
@@ -199,15 +254,22 @@ exports.validateOrderByCode = async (req, res) => {
     });
 
     if (!order) {
-      return res.status(404).json({ status: "error", message: "Pemesanan tidak ditemukan" });
+      return res
+        .status(404)
+        .json({ status: "error", message: "Pemesanan tidak ditemukan" });
     }
 
     // Cek status saat ini agar tidak duplikat update
     if (order.attendanceStatus === "ARRIVED") {
-      return res.status(400).json({ status: "error", message: "Pemesanan sudah dikonfirmasi hadir" });
+      return res.status(400).json({
+        status: "error",
+        message: "Pemesanan sudah dikonfirmasi hadir",
+      });
     }
     if (order.attendanceStatus === "CANCELLED") {
-      return res.status(400).json({ status: "error", message: "Pemesanan sudah dibatalkan" });
+      return res
+        .status(400)
+        .json({ status: "error", message: "Pemesanan sudah dibatalkan" });
     }
 
     // Validasi tanggal kunjungan untuk status ARRIVED
@@ -216,8 +278,16 @@ exports.validateOrderByCode = async (req, res) => {
       const visitDate = new Date(order.visitDate);
 
       // Bandingkan hanya tanggal tanpa waktu
-      const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const visitDateOnly = new Date(visitDate.getFullYear(), visitDate.getMonth(), visitDate.getDate());
+      const nowDateOnly = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+      const visitDateOnly = new Date(
+        visitDate.getFullYear(),
+        visitDate.getMonth(),
+        visitDate.getDate()
+      );
 
       if (nowDateOnly < visitDateOnly) {
         return res.status(400).json({

@@ -1,6 +1,9 @@
 // controllers/reviewController.js
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
+const generateReviewPDF = require("../../utils/generateReviewPDF");
+const path = require("path");
+
 
 /**
  * Mendapatkan semua ulasan
@@ -180,6 +183,50 @@ exports.deleteReview = async (req, res) => {
       success: false,
       message: "Gagal menghapus ulasan",
       error: error.message,
+    });
+  }
+};
+
+exports.generateReviewReportPDF = async (req, res) => {
+  try {
+    const reviews = await prisma.review.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    const averageRating =
+      reviews.length > 0
+        ? reviews.reduce((sum, review) => sum + review.score, 0) / reviews.length
+        : 0;
+
+    // Path ke output PDF
+    const pdfPath = path.join(__dirname, "../../invoices/review-report.pdf");
+
+    // Generate PDF
+    await generateReviewPDF(
+      {
+        reviews,
+        averageRating: parseFloat(averageRating.toFixed(1)),
+      },
+      pdfPath
+    );
+
+    // Kirim file PDF ke client
+    res.download(pdfPath, "review-report.pdf");
+  } catch (error) {
+    console.error("Gagal membuat PDF:", error);
+    res.status(500).json({
+      success: false,
+      message: "Gagal membuat laporan ulasan dalam PDF",
     });
   }
 };

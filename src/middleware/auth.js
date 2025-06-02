@@ -6,18 +6,22 @@ const SECRET = process.env.JWT_SECRET;
 // Middleware untuk verifikasi token JWT
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(403).json({ msg: "Token tidak ditemukan" });
+
+  // Cek apakah Authorization header tersedia dan format benar
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(403).json({ status: "error", message: "Token tidak ditemukan atau format salah" });
   }
 
   const token = authHeader.split(" ")[1];
 
   try {
     const decoded = jwt.verify(token, SECRET);
+
+    // Tambahkan data user ke request untuk digunakan di controller
     req.user = decoded;
     next();
   } catch (err) {
-    return res.status(401).json({ msg: "Token tidak valid", error: err.message });
+    return res.status(401).json({ status: "error", message: "Token tidak valid", error: err.message });
   }
 };
 
