@@ -1,18 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const galleryController = require('../../controllers/gallery/index.controller');
-const { isAdmin } = require('../../middleware/auth');
+const { verifyToken, isAdmin } = require('../../middleware/auth');
 const upload = require('../../middleware/upload');
 
+// Public Routes (user biasa / buyer bisa akses)
+router.get('/', verifyToken, galleryController.getGalleries);
+router.get('/:id', verifyToken, galleryController.getGalleryById);
 
-// Endpoint CREATE Gallery dengan upload foto
-router.post('/', upload.single('image'), galleryController.createGallery);
-
-// Route CRUD Gallery
-router.post('/', isAdmin, galleryController.createGallery);
-router.get('/', galleryController.getGalleries);
-router.get('/:id', galleryController.getGalleryById);
-router.put('/:id', isAdmin, galleryController.updateGallery);
-router.delete('/:id', isAdmin, galleryController.deleteGallery);
+// Admin Routes (hanya admin bisa akses)
+router.post('/', verifyToken, isAdmin, upload.single('image'), galleryController.createGallery);
+router.put('/:id', verifyToken, isAdmin, galleryController.updateGallery);
+router.delete('/:id', verifyToken, isAdmin, galleryController.deleteGallery);
 
 module.exports = router;
