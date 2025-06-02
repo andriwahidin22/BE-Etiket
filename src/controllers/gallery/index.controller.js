@@ -7,12 +7,19 @@ const prisma = new PrismaClient();
 exports.createGallery = async (req, res) => {
   try {
     const { title, description, category } = req.body;
-    if (!req.file) {
+
+    // Cek apakah file ada dan valid
+    if (!req.file || !req.file.filename) {
       return res.status(400).json({ message: "Image file is required" });
     }
 
-    // Simpan path file sebagai imageUrl, misal: 'uploads/filename.jpg'
-    const imageUrl = req.file.path;
+    // Simpan filename sebagai imageUrl
+    const imageUrl = req.file.filename;
+
+    // Validasi sederhana agar title dan category tidak kosong (opsional, bisa ditambah)
+    if (!title || !category) {
+      return res.status(400).json({ message: "Title and category are required" });
+    }
 
     const newGallery = await prisma.gallery.create({
       data: {
@@ -23,9 +30,9 @@ exports.createGallery = async (req, res) => {
       },
     });
 
-    res.status(201).json(newGallery);
+    res.status(201).json({ status: "success", data: newGallery });
   } catch (error) {
-    console.error(error);
+    console.error("Error creating gallery:", error);
     res.status(500).json({ message: "Failed to create gallery" });
   }
 };

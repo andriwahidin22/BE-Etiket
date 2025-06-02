@@ -2,6 +2,7 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
+// GET User BUYER
 exports.getAllBuyers = async (req, res) => {
   try {
     // Mengambil semua pengguna dengan role 'BUYER'

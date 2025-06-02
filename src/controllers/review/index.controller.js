@@ -5,9 +5,7 @@ const generateReviewPDF = require("../../utils/generateReviewPDF");
 const path = require("path");
 
 
-/**
- * Mendapatkan semua ulasan
- */
+// Mendapatkan semua ulasan
 exports.getAllReviews = async (req, res) => {
   try {
     const reviews = await prisma.review.findMany({
@@ -50,9 +48,7 @@ exports.getAllReviews = async (req, res) => {
   }
 };
 
-/**
- * Membuat atau memperbarui ulasan (UPSERT)
- */
+// Membuat atau memperbarui ulasan (UPSERT)
 exports.upsertReview = async (req, res) => {
   try {
     const { score, comment } = req.body;
@@ -108,9 +104,7 @@ exports.upsertReview = async (req, res) => {
   }
 };
 
-/**
- * Memperbarui ulasan tertentu
- */
+// Memperbarui ulasan tertentu
 exports.updateReview = async (req, res) => {
   try {
     const { id } = req.params;
@@ -157,9 +151,7 @@ exports.updateReview = async (req, res) => {
   }
 };
 
-/**
- * Menghapus ulasan tertentu
- */
+// Menghapus ulasan tertentu
 exports.deleteReview = async (req, res) => {
   try {
     const { id } = req.params;
@@ -187,6 +179,7 @@ exports.deleteReview = async (req, res) => {
   }
 };
 
+// Download Laporan Review
 exports.generateReviewReportPDF = async (req, res) => {
   try {
     const reviews = await prisma.review.findMany({

@@ -2,34 +2,37 @@ const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcrypt");
 const prisma = new PrismaClient();
 
+// GET Profile
 exports.getProfile = async (req, res) => {
-    const userId = req.user.id;
-  
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          id: true,
-          email: true,
-          fullName: true,
-          phoneNumber: true,
-          role: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
-  
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-  
-      return res.status(200).json({ user });
-    } catch (err) {
-      return res.status(500).json({ error: "Failed to fetch user profile", details: err.message });
-    }
-  };
-  
+  const userId = req.user.id;
 
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        phoneNumber: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.status(200).json({ user });
+  } catch (err) {
+    return res
+      .status(500)
+      .json({ error: "Failed to fetch user profile", details: err.message });
+  }
+};
+
+// PUT profile
 exports.updateProfile = async (req, res) => {
   const userId = req.user.id; // Mengambil ID user dari token yang terverifikasi
   const { fullName, phoneNumber, password } = req.body;
@@ -62,6 +65,8 @@ exports.updateProfile = async (req, res) => {
       },
     });
   } catch (err) {
-    return res.status(500).json({ error: "Failed to update profile", details: err.message });
+    return res
+      .status(500)
+      .json({ error: "Failed to update profile", details: err.message });
   }
 };

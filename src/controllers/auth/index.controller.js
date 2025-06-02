@@ -120,7 +120,6 @@ exports.register = async (req, res) => {
   }
 };
 
-
 // Verifikasi kode email
 exports.verifyEmail = async (req, res) => {
   try {
@@ -158,6 +157,7 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
+// Kirim Ulang Kode Verifikasi
 exports.resendVerificationCode = async (req, res) => {
   try {
     const { email } = req.body;
@@ -192,7 +192,6 @@ exports.resendVerificationCode = async (req, res) => {
     res.status(500).json({ msg: "Terjadi kesalahan server", error: err.message });
   }
 };
-
 
 // Login dengan pengecualian verifikasi untuk admin
 exports.login = async (req, res) => {
@@ -322,6 +321,7 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
+// Reset token google
 async function revokeGoogleToken(token) {
   try {
     await axios.post(
@@ -335,6 +335,7 @@ async function revokeGoogleToken(token) {
   }
 }
 
+// Logout
 exports.logout = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
