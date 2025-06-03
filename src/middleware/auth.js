@@ -1,7 +1,6 @@
 const jwt = require("jsonwebtoken");
 const SECRET = process.env.JWT_SECRET;
 
-// Middleware untuk verifikasi token JWT (bisa admin/buyer)
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
