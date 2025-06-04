@@ -202,7 +202,7 @@ exports.generateReviewReportPDF = async (req, res) => {
         : 0;
 
     // Path ke output PDF
-    const pdfPath = path.join(__dirname, "../../invoices/review-report.pdf");
+    const pdfPath = path.join(__dirname, "../../Reviews/review-report.pdf");
 
     // Generate PDF
     await generateReviewPDF(

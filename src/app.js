@@ -1,4 +1,3 @@
-// File: src/app.js
 require("dotenv").config();
 require('events').EventEmitter.defaultMaxListeners = 20;
 const express = require("express");
@@ -36,6 +35,13 @@ const corsOptions = {
 app.use(helmet());
 app.use(cors(corsOptions));
 
+// Manual Request Logger (Before All Routes)
+app.use((req, res, next) => {
+  const now = new Date().toISOString();
+  console.log(`[${now}] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // Handle preflight requests
 app.options('*', cors(corsOptions));
 
@@ -46,8 +52,9 @@ app.use(express.urlencoded({ extended: true }));
 // Static Files
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
-// Health Check
+// Health Check Endpoint
 app.get("/api/status", (req, res) => {
+  console.log("✅ [STATUS CHECK] Backend is alive.");
   res.json({
     status: "Backend is running",
     port: process.env.PORT,
@@ -58,14 +65,10 @@ app.get("/api/status", (req, res) => {
 // Mount all API routes
 app.use("/api", apiRoutes);
 
-//middleware JSON
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
 // Midtrans Error Handler
 app.use((err, req, res, next) => {
   if (err.message.includes('Midtrans')) {
-    console.error('Midtrans Error:', err);
+    console.error(`❌ [${req.method}] ${req.originalUrl} - Midtrans Error:`, err);
     return res.status(502).json({
       status: "error",
       message: "Payment gateway error"
@@ -73,14 +76,15 @@ app.use((err, req, res, next) => {
   }
   next(err);
 });
+
 // Global Error Handler
 app.use((err, req, res, next) => {
+  console.error(`❌ [${req.method}] ${req.originalUrl} - Internal Server Error`);
   console.error(err.stack);
   res.status(500).json({
     error: "Internal Server Error",
     message: err.message
   });
 });
-
 
 module.exports = app;
