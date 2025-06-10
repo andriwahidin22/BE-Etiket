@@ -11,6 +11,12 @@ router.post("/public/validate-attendance", orderController.validateAttendanceByQ
 // Admin routes
 router.post("/validate-order", verifyToken, isAdmin, orderController.validateOrderByCode);
 router.post("/validate-attendance", verifyToken, isAdmin, orderController.validateAttendanceByQRCode);
+router.get("/ticket-instances", verifyToken, isAdmin, orderController.getAllTicketInstances);
+
+// Authenticated user routes
+router.get("/ticket-instances/:id", verifyToken, orderController.getTicketInstanceById);
+router.get('/ticket-instances', verifyToken, isAdmin, orderController.getAllTicketInstances);
+
 
 // Other routes
 router.get("/", verifyToken, isAdmin, orderController.getAllOrders);

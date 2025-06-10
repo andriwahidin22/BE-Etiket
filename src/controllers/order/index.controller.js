@@ -438,4 +438,74 @@ exports.validateAttendanceByQRCode = async (req, res) => {
   }
 };
 
+// Mendapatkan semua ticket instances (untuk admin)
+exports.getAllTicketInstances = async (req, res) => {
+  try {
+    const ticketInstances = await prisma.ticketInstance.findMany({
+      include: {
+        orderItem: {
+          include: {
+            order: true,
+            ticket: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
+    res.status(200).json({ 
+      status: "success", 
+      data: ticketInstances 
+    });
+  } catch (error) {
+    console.error("Get all ticket instances failed:", error);
+    res.status(500).json({ 
+      status: "error", 
+      message: error.message 
+    });
+  }
+};
+
+// Mendapatkan ticket instance berdasarkan ID
+exports.getTicketInstanceById = async (req, res) => {
+  try {
+    const ticketInstanceId = parseInt(req.params.id);
+    
+    if (isNaN(ticketInstanceId)) {
+      return res.status(400).json({ 
+        status: "error", 
+        message: "ID ticket instance tidak valid" 
+      });
+    }
+
+    const ticketInstance = await prisma.ticketInstance.findUnique({
+      where: { id: ticketInstanceId },
+      include: {
+        orderItem: {
+          include: {
+            order: true,
+            ticket: true,
+          },
+        },
+      },
+    });
+
+    if (!ticketInstance) {
+      return res.status(404).json({ 
+        status: "error", 
+        message: "Ticket instance tidak ditemukan" 
+      });
+    }
+
+    res.status(200).json({ 
+      status: "success", 
+      data: ticketInstance 
+    });
+  } catch (error) {
+    console.error("Get ticket instance by ID failed:", error);
+    res.status(500).json({ 
+      status: "error", 
+      message: error.message 
+    });
+  }
+};
