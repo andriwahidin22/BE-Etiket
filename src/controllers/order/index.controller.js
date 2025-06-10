@@ -318,138 +318,98 @@ exports.validateOrderByCode = async (req, res) => {
 // Validasi kehadiran berdasarkan QR Code
 exports.validateAttendanceByQRCode = async (req, res) => {
   try {
-    console.log("=== START VALIDATION ===");
-    console.log("📥 Full request received:", {
-      method: req.method,
-      path: req.path,
-      headers: req.headers,
-      body: req.body
-    });
-
-    // Validasi input
     if (!req.body) {
       console.error("❌ Request body is missing");
       return res.status(400).json({ status: "error", message: "Request body diperlukan" });
     }
 
     const { qrCode, status } = req.body;
-    console.log("🔍 Raw input data:", { qrCode, status });
 
-    if (!qrCode) {
-      console.error("❌ QR Code is required");
-      return res.status(400).json({ status: "error", message: "QR code diperlukan" });
-    }
-
-    if (typeof qrCode !== "string") {
-      console.error("❌ QR Code harus string, received:", typeof qrCode);
-      return res.status(400).json({ status: "error", message: "Format QR code tidak valid" });
+    if (!qrCode || typeof qrCode !== "string") {
+      console.error("❌ QR Code is invalid:", qrCode);
+      return res.status(400).json({ status: "error", message: "QR code tidak valid" });
     }
 
     const cleanedQRCode = qrCode.trim();
-    console.log("🧹 Cleaned QR Code:", `"${cleanedQRCode}"`, "Length:", cleanedQRCode.length);
 
-    // Cek apakah QR Code ada di database
-    console.log("🔎 Searching database for QR Code:", cleanedQRCode);
     const ticketInstance = await prisma.ticketInstance.findUnique({
       where: { qrCode: cleanedQRCode },
       include: {
         orderItem: {
           include: {
             order: true,
-            ticket: true
-          }
-        }
-      }
+            ticket: true,
+          },
+        },
+      },
     });
 
     if (!ticketInstance) {
-      console.error("❌ Ticket not found in database for QR:", cleanedQRCode);
-      console.log("ℹ️ Sample QR codes in database:", 
-        await prisma.ticketInstance.findMany({
-          take: 5,
-          select: { qrCode: true }
-        }));
-      return res.status(404).json({ 
-        status: "error", 
+      const sampleQRs = await prisma.ticketInstance.findMany({
+        take: 3,
+        select: { qrCode: true },
+      });
+      console.error("❌ Ticket not found. QR:", cleanedQRCode, "Examples:", sampleQRs);
+      return res.status(404).json({
+        status: "error",
         message: "Tiket tidak ditemukan",
-        suggestion: "Pastikan QR code sudah terdaftar di sistem"
+        suggestion: "Pastikan QR code sudah terdaftar di sistem",
       });
     }
 
-    console.log("✅ Ticket found:", {
-      id: ticketInstance.id,
-      currentStatus: ticketInstance.attendanceStatus,
-      orderId: ticketInstance.orderItem?.order?.id,
-      orderCode: ticketInstance.orderItem?.order?.orderCode,
-      ticketType: ticketInstance.orderItem?.ticket?.type
-    });
-
-    // Validasi status
-    if (!status) {
-      console.error("❌ Status is required");
-      return res.status(400).json({ status: "error", message: "Status diperlukan" });
+    const order = ticketInstance.orderItem?.order;
+    if (!order) {
+      console.error("❌ Order tidak ditemukan di relasi OrderItem");
+      return res.status(400).json({
+        status: "error",
+        message: "ID order tidak valid (relasi order tidak ditemukan)",
+      });
     }
 
     const validStatuses = ["ARRIVED", "NOT_ARRIVED", "CANCELLED"];
-    if (!validStatuses.includes(status)) {
-      console.error("❌ Invalid status:", status);
-      return res.status(400).json({ 
-        status: "error", 
-        message: "Status tidak valid. Pilihan: ARRIVED, NOT_ARRIVED, CANCELLED"
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Status tidak valid. Pilihan: ARRIVED, NOT_ARRIVED, CANCELLED",
       });
     }
 
-    // Validasi bisnis
     if (ticketInstance.attendanceStatus === "ARRIVED" && status === "ARRIVED") {
-      console.warn("⚠️ Ticket already arrived");
       return res.status(400).json({
         status: "error",
-        message: "Tiket sudah dikonfirmasi hadir sebelumnya"
+        message: "Tiket sudah dikonfirmasi hadir sebelumnya",
       });
     }
 
     if (ticketInstance.attendanceStatus === "CANCELLED") {
-      console.warn("⚠️ Ticket is cancelled");
       return res.status(400).json({
         status: "error",
-        message: "Tiket sudah dibatalkan"
+        message: "Tiket sudah dibatalkan",
       });
     }
 
-    // Validasi tanggal
     const now = new Date();
-    const visitDate = new Date(ticketInstance.orderItem.order.visitDate);
-    console.log("📅 Date comparison:", {
-      now: now.toISOString(),
-      visitDate: visitDate.toISOString()
-    });
+    const visitDate = new Date(order.visitDate);
+    const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const visitDateOnly = new Date(visitDate.getFullYear(), visitDate.getMonth(), visitDate.getDate());
 
-    if (status === "ARRIVED" && now < visitDate) {
-      console.warn("⏳ Cannot arrive before visit date");
+    if (status === "ARRIVED" && nowDateOnly < visitDateOnly) {
       return res.status(400).json({
         status: "error",
-        message: `Tidak bisa validasi kehadiran sebelum tanggal kunjungan (${visitDate.toLocaleDateString("id-ID")})`
+        message: `Tidak bisa validasi kehadiran sebelum tanggal kunjungan (${visitDateOnly.toLocaleDateString("id-ID")})`,
       });
     }
 
-    // Update database
-    console.log("🔄 Updating ticket status to:", status);
     const updatedTicket = await prisma.ticketInstance.update({
       where: { id: ticketInstance.id },
       data: { attendanceStatus: status },
       include: {
         orderItem: {
           include: {
-            order: true
-          }
-        }
-      }
-    });
-
-    console.log("🎉 Successfully updated ticket:", {
-      id: updatedTicket.id,
-      newStatus: updatedTicket.attendanceStatus,
-      orderCode: updatedTicket.orderItem.order.orderCode
+            order: true,
+          },
+        },
+      },
     });
 
     return res.status(200).json({
@@ -460,23 +420,22 @@ exports.validateAttendanceByQRCode = async (req, res) => {
         qrCode: updatedTicket.qrCode,
         status: updatedTicket.attendanceStatus,
         orderCode: updatedTicket.orderItem.order.orderCode,
-        visitDate: updatedTicket.orderItem.order.visitDate
-      }
+        visitDate: updatedTicket.orderItem.order.visitDate,
+      },
     });
 
   } catch (error) {
-    console.error("🔥 Critical error:", {
+    console.error("🔥 Server error:", {
       message: error.message,
       stack: error.stack,
-      fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
     });
-    
+
     return res.status(500).json({
       status: "error",
       message: "Terjadi kesalahan server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
-  } finally {
-    console.log("=== END VALIDATION ===");
   }
 };
+
+

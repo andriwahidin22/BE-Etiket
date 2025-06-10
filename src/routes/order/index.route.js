@@ -5,12 +5,12 @@ const router = express.Router();
 const orderController = require("../../controllers/order/index.controller");
 const { verifyToken, isAdmin } = require("../../middleware/auth");
 
-// Public routes (no auth needed)
+// Public route
 router.post("/public/validate-attendance", orderController.validateAttendanceByQRCode);
 
 // Admin routes
 router.post("/validate-order", verifyToken, isAdmin, orderController.validateOrderByCode);
-router.post("/validate-attendance", isAdmin, orderController.validateAttendanceByQRCode);
+router.post("/validate-attendance", verifyToken, isAdmin, orderController.validateAttendanceByQRCode);
 
 // Other routes
 router.get("/", verifyToken, isAdmin, orderController.getAllOrders);

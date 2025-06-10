@@ -134,7 +134,7 @@ model OrderItem {
   totalPrice  Int?
 
   order       Order            @relation(fields: [orderId], references: [id])
-  ticket      Ticket           @relation(fields: [ticketId], references: [id])
+  ticket      Ticket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   ticketInstances TicketInstance[]
 }
 
@@ -145,10 +145,11 @@ model TicketInstance {
   qrCode           String           @unique
   attendanceStatus AttendanceStatus  @default(NOT_ARRIVED)
   createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  updatedAt        DateTime         @default(now())
 
-  orderItem        OrderItem        @relation(fields: [orderItemId], references: [id])
+  orderItem        OrderItem        @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
 }
+
 
 // ==== Review ====
 model Review {
