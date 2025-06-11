@@ -1,3 +1,5 @@
+//src/routes/api.route.js
+
 const express = require("express");
 const router = express.Router();
 
@@ -31,7 +33,7 @@ router.use("/admin/users", adminUserRoutes);
 const userRoutes = require("./users/index.route");
 router.use("/users", userRoutes);
 
-// Gallery Routes — **TAMBAHKAN INI**
+// Gallery Routes
 router.use("/gallery", require("./gallery/index.route"));
 
 // Tambahkan ini:
