@@ -509,6 +509,7 @@ exports.getAllTicketInstances = async (req, res) => {
       include: {
         orderItem: {
           include: {
+            ticket: true, // Relasi ke Ticket
             order: {
               include: {
                 user: {
@@ -518,9 +519,18 @@ exports.getAllTicketInstances = async (req, res) => {
                     email: true,
                   },
                 },
+                payment: {
+                  select: {
+                    id: true,
+                    totalAmount: true,
+                    paymentStatus: true,
+                    paymentMethod: true,
+                    transactionDate: true,
+                    settlementTime: true,
+                  },
+                },
               },
             },
-            ticket: true,
           },
         },
       },
