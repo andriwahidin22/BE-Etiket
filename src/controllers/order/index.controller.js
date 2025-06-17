@@ -85,7 +85,6 @@ exports.getOrderById = async (req, res) => {
   }
 };
 
-
 // Download PDF tiket berdasarkan order ID, hanya untuk pemilik order
 exports.downloadTicket = async (req, res) => {
   try {
@@ -238,7 +237,15 @@ exports.resendTicket = async (req, res) => {
 // Mendapatkan semua order (misal untuk admin)
 exports.getAllOrders = async (req, res) => {
   try {
+    let whereCondition = {};
+
+    // Jika bukan admin, hanya ambil pesanan milik pengguna yang sedang login
+    if (req.user.role !== "ADMIN") {
+      whereCondition = { userId: req.user.id };
+    }
+
     const orders = await prisma.order.findMany({
+      where: whereCondition,
       include: {
         orderItems: {
           include: {
