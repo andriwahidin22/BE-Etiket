@@ -1,5 +1,3 @@
-//src/controllers/admin/report/index.controller.js
-
 const { PrismaClient, PaymentStatus } = require("@prisma/client");
 const generateReportPDF = require("../../../utils/generateReportPDF");
 const prisma = new PrismaClient();
@@ -31,13 +29,39 @@ function groupOrdersByDate(orders) {
   return summary;
 }
 
-exports.getPurchaseReport = async (req, res) => {
+function calculateTotals(orders, category) {
+  const totalByCategory = {};
+  let totalAll = 0;
+
+  orders.forEach(order => {
+    order.orderItems.forEach(item => {
+      const type = item.ticket.type;
+      const total = item.totalPrice || item.ticketPrice * item.quantity;
+
+      if (category && type !== category) return;
+
+      if (!totalByCategory[type]) totalByCategory[type] = 0;
+      totalByCategory[type] += total;
+
+      totalAll += total;
+    });
+  });
+
+  return { totalByCategory, totalAll };
+}
+
+exports.getPurchaseReportView = async (req, res) => {
   try {
-    const { startDate, endDate, category, generatePdf } = req.body;
+    const { startDate, endDate, category } = req.query;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ status: "error", message: "Parameter startDate dan endDate wajib diisi." });
+    }
+
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    const orders = await prisma.order.findMany({
+    let orders = await prisma.order.findMany({
       where: {
         visitDate: {
           gte: start,
@@ -46,24 +70,10 @@ exports.getPurchaseReport = async (req, res) => {
         payment: {
           paymentStatus: PaymentStatus.PAID,
         },
-        orderItems: {
-          some: {
-            ticket: {
-              ...(category && { type: category }),
-            },
-          },
-        },
       },
       include: {
         payment: true,
         orderItems: {
-          where: {
-            ...(category && {
-              ticket: {
-                type: category,
-              },
-            }),
-          },
           include: {
             ticket: true,
             ticketInstances: true,
@@ -82,7 +92,15 @@ exports.getPurchaseReport = async (req, res) => {
       },
     });
 
-    if (!orders || orders.length === 0) {
+    if (category) {
+      orders.forEach(order => {
+        order.orderItems = order.orderItems.filter(item => item.ticket.type === category);
+      });
+
+      orders = orders.filter(order => order.orderItems.length > 0);
+    }
+
+    if (!orders.length) {
       return res.status(200).json({
         status: "empty",
         message: "Tidak ada data pembelian ditemukan.",
@@ -92,22 +110,78 @@ exports.getPurchaseReport = async (req, res) => {
       });
     }
 
-    const totalByCategory = {};
-    let totalAll = 0;
+    const { totalByCategory, totalAll } = calculateTotals(orders, category);
 
-    orders.forEach(order => {
-      order.orderItems.forEach(item => {
-        const type = item.ticket.type;
-        const total = item.totalPrice || item.ticketPrice * item.quantity;
-
-        if (category && type !== category) return;
-
-        if (!totalByCategory[type]) totalByCategory[type] = 0;
-        totalByCategory[type] += total;
-
-        totalAll += total;
-      });
+    return res.status(200).json({
+      status: "success",
+      data: orders,
+      totalByCategory,
+      totalAll,
     });
+
+  } catch (error) {
+    console.error("❌ Error fetching report view:", error);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
+
+exports.getPurchaseReport = async (req, res) => {
+  try {
+    const { startDate, endDate, category, generatePdf } = req.body;
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    let orders = await prisma.order.findMany({
+      where: {
+        visitDate: {
+          gte: start,
+          lte: end,
+        },
+        payment: {
+          paymentStatus: PaymentStatus.PAID,
+        },
+      },
+      include: {
+        payment: true,
+        orderItems: {
+          include: {
+            ticket: true,
+            ticketInstances: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        visitDate: "asc",
+      },
+    });
+
+    if (category) {
+      orders.forEach(order => {
+        order.orderItems = order.orderItems.filter(item => item.ticket.type === category);
+      });
+
+      orders = orders.filter(order => order.orderItems.length > 0);
+    }
+
+    if (!orders.length) {
+      return res.status(200).json({
+        status: "empty",
+        message: "Tidak ada data pembelian ditemukan.",
+        data: [],
+        totalByCategory: {},
+        totalAll: 0,
+      });
+    }
+
+    const { totalByCategory, totalAll } = calculateTotals(orders, category);
 
     if (generatePdf) {
       const summary = groupOrdersByDate(orders);
@@ -121,15 +195,15 @@ exports.getPurchaseReport = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       status: "success",
       totalByCategory,
       totalAll,
       data: orders,
     });
+
   } catch (error) {
     console.error("❌ Error generating report:", error);
     res.status(500).json({ status: "error", message: error.message });
   }
 };
-
