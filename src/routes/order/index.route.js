@@ -9,10 +9,11 @@ router.post("/public/validate-attendance", orderController.validateAttendanceByQ
 // ✅ Admin-only routes
 router.post("/validate-order", verifyToken, isAdmin, orderController.validateOrderByCode);
 router.post("/validate-attendance", verifyToken, isAdmin, orderController.validateAttendanceByQRCode);
-router.get("/ticket-instances", verifyToken, isAdmin, orderController.getAllTicketInstances);
+router.get("/ticket-instances/admin", verifyToken, isAdmin, orderController.getAllTicketInstances);
 
 // ✅ Authenticated user routes (semua yang login)
-router.get("/", verifyToken, orderController.getAllOrders); // Admin: semua, User: milik sendiri
+router.get("/", verifyToken, orderController.getAllOrders); 
+router.get("/ticket-instances", verifyToken, orderController.getAllTicketInstances);
 router.get("/ticket-instances/:id", verifyToken, orderController.getTicketInstanceById);
 router.get("/:id", verifyToken, orderController.getOrderById);
 router.get("/:id/download", verifyToken, orderController.downloadTicket);

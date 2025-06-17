@@ -488,14 +488,38 @@ exports.validateAttendanceByQRCode = async (req, res) => {
   }
 };
 
-// Mendapatkan semua ticket instances (untuk admin)
+// Mendapatkan semua ticket instances (untuk admin/buyer)
 exports.getAllTicketInstances = async (req, res) => {
   try {
+    let whereCondition = {};
+
+    // Jika bukan admin, hanya ambil ticket instances milik user
+    if (req.user.role !== "ADMIN") {
+      whereCondition = {
+        orderItem: {
+          order: {
+            userId: req.user.id,
+          },
+        },
+      };
+    }
+
     const ticketInstances = await prisma.ticketInstance.findMany({
+      where: whereCondition,
       include: {
         orderItem: {
           include: {
-            order: true,
+            order: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                    email: true,
+                  },
+                },
+              },
+            },
             ticket: true,
           },
         },
