@@ -46,8 +46,29 @@ exports.getOrderById = async (req, res) => {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
-        orderItems: { include: { ticket: true, ticketInstances: true } },
-        user: { select: { id: true, fullName: true, email: true } },
+        orderItems: {
+          include: {
+            ticket: true,
+            ticketInstances: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+        payment: {
+          select: {
+            id: true,
+            totalAmount: true,
+            paymentStatus: true,
+            paymentMethod: true,
+            transactionDate: true,
+            settlementTime: true,
+          },
+        },
       },
     });
 
@@ -63,6 +84,7 @@ exports.getOrderById = async (req, res) => {
     res.status(500).json({ status: "error", message: error.message });
   }
 };
+
 
 // Download PDF tiket berdasarkan order ID, hanya untuk pemilik order
 exports.downloadTicket = async (req, res) => {
@@ -218,8 +240,29 @@ exports.getAllOrders = async (req, res) => {
   try {
     const orders = await prisma.order.findMany({
       include: {
-        orderItems: { include: { ticket: true, ticketInstances: true } },
-        user: { select: { id: true, fullName: true, email: true } },
+        orderItems: {
+          include: {
+            ticket: true,
+            ticketInstances: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+        payment: {
+          select: {
+            id: true,
+            totalAmount: true,
+            paymentStatus: true,
+            paymentMethod: true,
+            transactionDate: true,
+            settlementTime: true,
+          },
+        },
       },
       orderBy: { visitDate: "desc" },
     });
