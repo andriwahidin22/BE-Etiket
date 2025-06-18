@@ -9,8 +9,22 @@ router.get('/', verifyToken, galleryController.getGalleries);
 router.get('/:id', verifyToken, galleryController.getGalleryById);
 
 // Admin Routes (hanya admin bisa akses)
-router.post('/', verifyToken, isAdmin, upload.single('image'), galleryController.createGallery);
-router.put('/:id', verifyToken, isAdmin, galleryController.updateGallery);
+router.post(
+  '/',
+  verifyToken,
+  isAdmin,
+  upload.single('image'), // 'image' harus sesuai field upload di form
+  galleryController.createGallery
+);
+
+router.put(
+  '/:id',
+  verifyToken,
+  isAdmin,
+  upload.single('image'), // tambahkan upload agar admin bisa update gambar
+  galleryController.updateGallery
+);
+
 router.delete('/:id', verifyToken, isAdmin, galleryController.deleteGallery);
 
 module.exports = router;

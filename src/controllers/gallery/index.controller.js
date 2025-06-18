@@ -1,6 +1,9 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
+// Daftar kategori yang valid (harus sesuai dengan enum GalleryCategory di schema.prisma)
+const validCategories = ["GALLERY", "FACILITY", "EVENT"];
+
 // CREATE Gallery (Admin only)
 exports.createGallery = async (req, res) => {
   try {
@@ -15,7 +18,11 @@ exports.createGallery = async (req, res) => {
     }
 
     if (!title || !category) {
-      return res.status(400).json({ message: "Title and category are required" });
+      return res.status(400).json({ message: "Title dan category wajib diisi" });
+    }
+
+    if (!validCategories.includes(category)) {
+      return res.status(400).json({ message: "Kategori tidak valid. Pilihan: GALLERY, FACILITY, EVENT" });
     }
 
     const imageUrl = req.file.filename;
@@ -27,7 +34,7 @@ exports.createGallery = async (req, res) => {
     res.status(201).json({ status: "success", data: newGallery });
   } catch (error) {
     console.error("Error creating gallery:", error);
-    res.status(500).json({ message: "Failed to create gallery" });
+    res.status(500).json({ message: "Gagal membuat galeri" });
   }
 };
 
@@ -35,13 +42,18 @@ exports.createGallery = async (req, res) => {
 exports.getGalleries = async (req, res) => {
   try {
     const { category } = req.query;
+
+    if (category && !validCategories.includes(category)) {
+      return res.status(400).json({ message: "Kategori tidak valid dalam filter" });
+    }
+
     const where = category ? { category } : {};
 
     const galleries = await prisma.gallery.findMany({ where });
     res.status(200).json(galleries);
   } catch (error) {
     console.error("Error fetching galleries:", error);
-    res.status(500).json({ message: "Failed to fetch galleries" });
+    res.status(500).json({ message: "Gagal mengambil data galeri" });
   }
 };
 
@@ -52,13 +64,13 @@ exports.getGalleryById = async (req, res) => {
     const gallery = await prisma.gallery.findUnique({ where: { id } });
 
     if (!gallery) {
-      return res.status(404).json({ message: "Gallery not found" });
+      return res.status(404).json({ message: "Galeri tidak ditemukan" });
     }
 
     res.status(200).json(gallery);
   } catch (error) {
     console.error("Error fetching gallery by ID:", error);
-    res.status(500).json({ message: "Failed to fetch gallery" });
+    res.status(500).json({ message: "Gagal mengambil galeri" });
   }
 };
 
@@ -72,18 +84,22 @@ exports.updateGallery = async (req, res) => {
     const id = parseInt(req.params.id);
     const { title, description, imageUrl, category } = req.body;
 
+    if (category && !validCategories.includes(category)) {
+      return res.status(400).json({ message: "Kategori tidak valid" });
+    }
+
     const updatedGallery = await prisma.gallery.update({
       where: { id },
       data: { title, description, imageUrl, category },
     });
 
-    res.status(200).json({ message: "Gallery updated", data: updatedGallery });
+    res.status(200).json({ message: "Galeri berhasil diperbarui", data: updatedGallery });
   } catch (error) {
     console.error("Error updating gallery:", error);
     if (error.code === "P2025") {
-      return res.status(404).json({ message: "Gallery not found" });
+      return res.status(404).json({ message: "Galeri tidak ditemukan" });
     }
-    res.status(500).json({ message: "Failed to update gallery" });
+    res.status(500).json({ message: "Gagal memperbarui galeri" });
   }
 };
 
@@ -97,12 +113,12 @@ exports.deleteGallery = async (req, res) => {
     const id = parseInt(req.params.id);
     await prisma.gallery.delete({ where: { id } });
 
-    res.status(200).json({ message: "Gallery deleted successfully" });
+    res.status(200).json({ message: "Galeri berhasil dihapus" });
   } catch (error) {
     console.error("Error deleting gallery:", error);
     if (error.code === "P2025") {
-      return res.status(404).json({ message: "Gallery not found" });
+      return res.status(404).json({ message: "Galeri tidak ditemukan" });
     }
-    res.status(500).json({ message: "Failed to delete gallery" });
+    res.status(500).json({ message: "Gagal menghapus galeri" });
   }
 };

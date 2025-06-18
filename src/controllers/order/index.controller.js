@@ -537,7 +537,6 @@ exports.validateAttendanceByQRCode = async (req, res) => {
   }
 };
 
-
 // Mendapatkan semua ticket instances (untuk admin/buyer)
 exports.getAllTicketInstances = async (req, res) => {
   try {
