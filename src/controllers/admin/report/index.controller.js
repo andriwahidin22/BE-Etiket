@@ -207,3 +207,55 @@ exports.getPurchaseReport = async (req, res) => {
     res.status(500).json({ status: "error", message: error.message });
   }
 };
+
+exports.getPurchaseReportDownload = async (req, res) => {
+  try {
+    const { startDate, endDate, category } = req.query;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    let orders = await prisma.order.findMany({
+      where: {
+        visitDate: { gte: start, lte: end },
+        payment: { paymentStatus: PaymentStatus.PAID },
+      },
+      include: {
+        payment: true,
+        orderItems: {
+          include: { ticket: true, ticketInstances: true },
+        },
+        user: {
+          select: { id: true, fullName: true, email: true },
+        },
+      },
+      orderBy: { visitDate: "asc" },
+    });
+
+    if (category) {
+      orders = orders
+        .map(order => ({
+          ...order,
+          orderItems: order.orderItems.filter(item => item.ticket.type === category),
+        }))
+        .filter(order => order.orderItems.length > 0);
+    }
+
+    if (!orders.length) {
+      return res.status(404).json({
+        status: "empty",
+        message: "Tidak ada data pembelian ditemukan.",
+      });
+    }
+
+    const summary = groupOrdersByDate(orders);
+    const periodLabel = `${start.toLocaleDateString("id-ID")} - ${end.toLocaleDateString("id-ID")}`;
+    const { totalAll } = calculateTotals(orders, category);
+
+    const fileName = await generateReportPDF({ summary, totalAll, periodLabel, orders });
+
+    return res.download(`reports/${fileName}`);
+  } catch (err) {
+    console.error("❌ Error downloading PDF:", err);
+    return res.status(500).json({ status: "error", message: "Gagal menghasilkan laporan PDF", error: err.message });
+  }
+};

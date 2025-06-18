@@ -180,8 +180,38 @@ exports.deleteReview = async (req, res) => {
 };
 
 // Download Laporan Review
+
 exports.generateReviewReportPDF = async (req, res) => {
   try {
+    // Ambil token dari query param
+    const token = req.query.token;
+    if (!token) {
+      return res.status(403).json({
+        status: "error",
+        message: "Token wajib dikirim via query ?token=...",
+      });
+    }
+
+    // Verifikasi token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, SECRET);
+    } catch (err) {
+      return res.status(401).json({
+        status: "error",
+        message: "Token tidak valid atau sudah kedaluwarsa",
+      });
+    }
+
+    // Cek role admin
+    if (!decoded || decoded.role !== "ADMIN") {
+      return res.status(403).json({
+        status: "error",
+        message: "Hanya admin yang dapat mengunduh laporan ulasan",
+      });
+    }
+
+    // Ambil data review
     const reviews = await prisma.review.findMany({
       include: {
         user: {
@@ -213,13 +243,13 @@ exports.generateReviewReportPDF = async (req, res) => {
       pdfPath
     );
 
-    // Kirim file PDF ke client
+    // Kirim file PDF
     res.download(pdfPath, "review-report.pdf");
   } catch (error) {
-    console.error("Gagal membuat PDF:", error);
+    console.error("❌ Gagal membuat PDF:", error);
     res.status(500).json({
-      success: false,
-      message: "Gagal membuat laporan ulasan dalam PDF",
+      status: "error",
+      message: "Gagal membuat laporan ulasan PDF",
     });
   }
 };

@@ -8,7 +8,7 @@ const {
   deleteReview,
   generateReviewReportPDF
 } = require("../../controllers/review/index.controller");
-const { verifyToken } = require("../../middleware/auth");
+const { verifyToken, isAdmin } = require("../../middleware/auth");
 
 
 // GET semua ulasan (akses publik)
@@ -24,7 +24,7 @@ router.put("/update/:id", verifyToken, updateReview);
 router.delete("/:id", verifyToken, deleteReview);
 
 // Download PDF Rating
-router.get("/ReviewPDF", generateReviewReportPDF);
+router.get("/ReviewPDF", verifyToken, isAdmin, generateReviewReportPDF);
 
 
 module.exports = router;
