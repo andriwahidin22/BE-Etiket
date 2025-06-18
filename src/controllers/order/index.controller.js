@@ -478,24 +478,26 @@ exports.validateAttendanceByQRCode = async (req, res) => {
 
     const now = new Date();
     const visitDate = new Date(order.visitDate);
-    const nowDateOnly = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    );
-    const visitDateOnly = new Date(
-      visitDate.getFullYear(),
-      visitDate.getMonth(),
-      visitDate.getDate()
-    );
 
-    if (status === "ARRIVED" && nowDateOnly < visitDateOnly) {
-      return res.status(400).json({
-        status: "error",
-        message: `Tidak bisa validasi kehadiran sebelum tanggal kunjungan (${visitDateOnly.toLocaleDateString(
-          "id-ID"
-        )})`,
-      });
+    const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const visitDateOnly = new Date(visitDate.getFullYear(), visitDate.getMonth(), visitDate.getDate());
+
+    const dayDiff = Math.floor((nowDateOnly - visitDateOnly) / (1000 * 60 * 60 * 24));
+
+    if (status === "ARRIVED") {
+      if (dayDiff < 0) {
+        return res.status(400).json({
+          status: "error",
+          message: `Tidak bisa validasi kehadiran sebelum tanggal kunjungan (${visitDateOnly.toLocaleDateString("id-ID")})`,
+        });
+      }
+
+      if (dayDiff > 0) {
+        return res.status(400).json({
+          status: "error",
+          message: `Tiket sudah kedaluwarsa. Kehadiran hanya bisa divalidasi pada tanggal kunjungan (${visitDateOnly.toLocaleDateString("id-ID")})`,
+        });
+      }
     }
 
     const updatedTicket = await prisma.ticketInstance.update({
@@ -534,6 +536,7 @@ exports.validateAttendanceByQRCode = async (req, res) => {
     });
   }
 };
+
 
 // Mendapatkan semua ticket instances (untuk admin/buyer)
 exports.getAllTicketInstances = async (req, res) => {
