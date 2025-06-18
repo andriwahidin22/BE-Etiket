@@ -398,19 +398,13 @@ exports.validateOrderByCode = async (req, res) => {
 exports.validateAttendanceByQRCode = async (req, res) => {
   try {
     if (!req.body) {
-      console.error("❌ Request body is missing");
-      return res
-        .status(400)
-        .json({ status: "error", message: "Request body diperlukan" });
+      return res.status(400).json({ status: "error", message: "Request body diperlukan" });
     }
 
     const { qrCode, status } = req.body;
 
     if (!qrCode || typeof qrCode !== "string") {
-      console.error("❌ QR Code is invalid:", qrCode);
-      return res
-        .status(400)
-        .json({ status: "error", message: "QR code tidak valid" });
+      return res.status(400).json({ status: "error", message: "QR code tidak valid" });
     }
 
     const cleanedQRCode = qrCode.trim();
@@ -428,32 +422,21 @@ exports.validateAttendanceByQRCode = async (req, res) => {
     });
 
     if (!ticketInstance) {
-      const sampleQRs = await prisma.ticketInstance.findMany({
-        take: 3,
-        select: { qrCode: true },
-      });
-      console.error(
-        "❌ Ticket not found. QR:",
-        cleanedQRCode,
-        "Examples:",
-        sampleQRs
-      );
       return res.status(404).json({
         status: "error",
         message: "Tiket tidak ditemukan",
-        suggestion: "Pastikan QR code sudah terdaftar di sistem",
       });
     }
 
     const order = ticketInstance.orderItem?.order;
     if (!order) {
-      console.error("❌ Order tidak ditemukan di relasi OrderItem");
       return res.status(400).json({
         status: "error",
-        message: "ID order tidak valid (relasi order tidak ditemukan)",
+        message: "Relasi order tidak ditemukan",
       });
     }
 
+    // Validasi status input
     const validStatuses = ["ARRIVED", "NOT_ARRIVED", "CANCELLED"];
     if (!status || !validStatuses.includes(status)) {
       return res.status(400).json({
@@ -462,6 +445,28 @@ exports.validateAttendanceByQRCode = async (req, res) => {
       });
     }
 
+    const now = new Date();
+    const visitDate = new Date(order.visitDate);
+    const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const visitDateOnly = new Date(visitDate.getFullYear(), visitDate.getMonth(), visitDate.getDate());
+
+    // ⏱ Auto-expire jika belum hadir dan sudah lewat tanggal kunjungan
+    if (
+      ticketInstance.attendanceStatus === "NOT_ARRIVED" &&
+      nowDateOnly > visitDateOnly
+    ) {
+      await prisma.ticketInstance.update({
+        where: { id: ticketInstance.id },
+        data: { attendanceStatus: "EXPIRED" },
+      });
+
+      return res.status(400).json({
+        status: "error",
+        message: `Tiket telah kedaluwarsa (kunjungan: ${visitDateOnly.toLocaleDateString("id-ID")})`,
+      });
+    }
+
+    // Validasi status duplikat
     if (ticketInstance.attendanceStatus === "ARRIVED" && status === "ARRIVED") {
       return res.status(400).json({
         status: "error",
@@ -476,38 +481,20 @@ exports.validateAttendanceByQRCode = async (req, res) => {
       });
     }
 
-    const now = new Date();
-    const visitDate = new Date(order.visitDate);
-
-    const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const visitDateOnly = new Date(visitDate.getFullYear(), visitDate.getMonth(), visitDate.getDate());
-
-    const dayDiff = Math.floor((nowDateOnly - visitDateOnly) / (1000 * 60 * 60 * 24));
-
-    if (status === "ARRIVED") {
-      if (dayDiff < 0) {
-        return res.status(400).json({
-          status: "error",
-          message: `Tidak bisa validasi kehadiran sebelum tanggal kunjungan (${visitDateOnly.toLocaleDateString("id-ID")})`,
-        });
-      }
-
-      if (dayDiff > 0) {
-        return res.status(400).json({
-          status: "error",
-          message: `Tiket sudah kedaluwarsa. Kehadiran hanya bisa divalidasi pada tanggal kunjungan (${visitDateOnly.toLocaleDateString("id-ID")})`,
-        });
-      }
+    if (status === "ARRIVED" && nowDateOnly < visitDateOnly) {
+      return res.status(400).json({
+        status: "error",
+        message: `Tidak bisa validasi kehadiran sebelum tanggal kunjungan (${visitDateOnly.toLocaleDateString("id-ID")})`,
+      });
     }
 
+    // ✅ Update status sesuai permintaan
     const updatedTicket = await prisma.ticketInstance.update({
       where: { id: ticketInstance.id },
       data: { attendanceStatus: status },
       include: {
         orderItem: {
-          include: {
-            order: true,
-          },
+          include: { order: true },
         },
       },
     });
@@ -524,11 +511,7 @@ exports.validateAttendanceByQRCode = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("🔥 Server error:", {
-      message: error.message,
-      stack: error.stack,
-    });
-
+    console.error("🔥 Server error:", error);
     return res.status(500).json({
       status: "error",
       message: "Terjadi kesalahan server",
@@ -536,6 +519,7 @@ exports.validateAttendanceByQRCode = async (req, res) => {
     });
   }
 };
+
 
 // Mendapatkan semua ticket instances (untuk admin/buyer)
 exports.getAllTicketInstances = async (req, res) => {
