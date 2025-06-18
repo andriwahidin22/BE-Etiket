@@ -5,8 +5,8 @@ const { verifyToken, isAdmin } = require('../../middleware/auth');
 const upload = require('../../middleware/upload');
 
 // Public Routes (user biasa / buyer bisa akses)
-router.get('/', verifyToken, galleryController.getGalleries);
-router.get('/:id', verifyToken, galleryController.getGalleryById);
+router.get('/', galleryController.getGalleries);
+router.get('/:id', galleryController.getGalleryById);
 
 // Admin Routes (hanya admin bisa akses)
 router.post(
