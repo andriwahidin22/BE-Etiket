@@ -1,49 +1,23 @@
 require("dotenv").config();
 require('events').EventEmitter.defaultMaxListeners = 20;
 const express = require("express");
-const cors = require("cors");
 const path = require("path");
 const helmet = require("helmet");
-const midtransErrorHandler = require('./middleware/midtransError');
 
+const midtransErrorHandler = require('./middleware/midtransError');
 const apiRoutes = require("./routes/api.route");
 
 const app = express();
 
-// Enhanced CORS Configuration
-const corsOptions = {
-  origin: function (origin, callback) {
-    const allowedOrigins = [
-      process.env.FRONTEND_URL, 
-      "http://localhost:3000",
-      "http://127.0.0.1:3000"
-    ];
-    
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-
 // Security Middleware
 app.use(helmet());
-app.use(cors(corsOptions));
 
-// Manual Request Logger (Before All Routes)
+// Manual Request Logger
 app.use((req, res, next) => {
   const now = new Date().toISOString();
   console.log(`[${now}] ${req.method} ${req.originalUrl}`);
   next();
 });
-
-// Handle preflight requests
-app.options('*', cors(corsOptions));
 
 // Body Parser
 app.use(express.json());
@@ -62,7 +36,7 @@ app.get("/api/status", (req, res) => {
   });
 });
 
-// Mount all API routes
+// API Routes
 app.use("/api", apiRoutes);
 
 // Midtrans Error Handler
