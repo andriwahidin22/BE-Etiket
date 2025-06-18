@@ -5,4 +5,5 @@ const reportController = require("../../../controllers/admin/report/index.contro
 // POST /admin/reports/purchases
 router.post("/", reportController.getPurchaseReport);
 
+router.get("/purchase-report", reportController.getPurchaseReportView);
 module.exports = router;
