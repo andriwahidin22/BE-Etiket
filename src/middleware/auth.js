@@ -4,20 +4,25 @@ const jwt = require("jsonwebtoken");
 const SECRET = process.env.JWT_SECRET;
 
 const verifyToken = (req, res, next) => {
-  const authHeader = req.headers.authorization;
+  let token;
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.split(" ")[1]; // Ambil dari Authorization Header
+  } else if (req.query.token) {
+    token = req.query.token; // Ambil dari query param
+  }
+
+  if (!token) {
     return res.status(403).json({
       status: "error",
-      message: "Token tidak ditemukan atau format salah",
+      message: "Token tidak ditemukan di header atau query parameter",
     });
   }
 
-  const token = authHeader.split(" ")[1];
-
   try {
     const decoded = jwt.verify(token, SECRET);
-    req.user = decoded;
+    req.user = decoded; // Isi ke req.user untuk dipakai controller
     next();
   } catch (err) {
     return res.status(401).json({
@@ -28,7 +33,6 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// Middleware untuk memastikan hanya admin yang bisa lanjut
 const isAdmin = (req, res, next) => {
   if (!req.user || req.user.role !== "ADMIN") {
     return res.status(403).json({

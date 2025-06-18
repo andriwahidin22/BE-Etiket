@@ -89,16 +89,33 @@ exports.getOrderById = async (req, res) => {
 exports.downloadTicket = async (req, res) => {
   try {
     const { id } = req.params;
+    const { token } = req.query;
 
     console.log("✅ Raw orderId from params:", id);
 
+    // Validasi parameter order ID
     if (!id || isNaN(Number(id))) {
       console.error("❌ orderId is invalid:", id);
       return res.status(400).json({ message: "Invalid orderId parameter" });
     }
 
+    // Validasi token
+    if (!token) {
+      console.error("❌ Token tidak ditemukan di query parameter");
+      return res.status(401).json({ message: "Token is required" });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      console.error("❌ Token tidak valid:", err.message);
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
+
     const orderId = parseInt(id);
 
+    // Cari order dan sertakan data user
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -117,7 +134,12 @@ exports.downloadTicket = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // ✅ Hindari error jika ticketInstances null/undefined
+    // Validasi kepemilikan order
+    if (order.userId !== decoded.userId) {
+      console.error("❌ Unauthorized: Token tidak cocok dengan pemilik order");
+      return res.status(403).json({ message: "You are not authorized to download this ticket" });
+    }
+
     const allTicketInstances = order.orderItems.flatMap(
       (item) => item.ticketInstances || []
     );
@@ -129,7 +151,6 @@ exports.downloadTicket = async (req, res) => {
 
     const pdfPath = path.join(ticketsDir, `${order.orderCode}_tickets.pdf`);
 
-    // ✅ Pastikan parameter lengkap saat memanggil generateTicketPDF
     await generateTicketPDF(
       order,
       order.orderItems,
@@ -138,13 +159,10 @@ exports.downloadTicket = async (req, res) => {
       pdfPath
     );
 
-    // ✅ Kirim file ke browser
     res.download(pdfPath, `${order.orderCode}_tickets.pdf`, (err) => {
       if (err) {
         console.error("❌ Download ticket failed:", err);
-        res
-          .status(500)
-          .json({ status: "error", message: "Failed to download ticket PDF" });
+        res.status(500).json({ status: "error", message: "Failed to download ticket PDF" });
       }
     });
   } catch (error) {
