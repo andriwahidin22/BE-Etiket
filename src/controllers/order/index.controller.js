@@ -6,6 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const nodemailer = require("nodemailer");
 const generateTicketPDF = require("../../utils/generateTicketPDF");
+const jwt = require("jsonwebtoken");
 
 // Fungsi kirim email dengan lampiran PDF tiket
 const sendEmail = async (to, subject, text, attachmentPath) => {
@@ -105,6 +106,8 @@ exports.downloadTicket = async (req, res) => {
       return res.status(401).json({ message: "Token is required" });
     }
 
+    console.log("Tokens: ", token);
+
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -134,10 +137,12 @@ exports.downloadTicket = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Validasi kepemilikan order
-    if (order.userId !== decoded.userId) {
+    // ✅ Perbaikan di sini: validasi user pemilik order
+    if (order.userId !== decoded.id) {
       console.error("❌ Unauthorized: Token tidak cocok dengan pemilik order");
-      return res.status(403).json({ message: "You are not authorized to download this ticket" });
+      return res
+        .status(403)
+        .json({ message: "You are not authorized to download this ticket" });
     }
 
     const allTicketInstances = order.orderItems.flatMap(
@@ -159,10 +164,16 @@ exports.downloadTicket = async (req, res) => {
       pdfPath
     );
 
+    // Debug
+    console.log("User after decode:", decoded);
+
+    // Download PDF
     res.download(pdfPath, `${order.orderCode}_tickets.pdf`, (err) => {
       if (err) {
         console.error("❌ Download ticket failed:", err);
-        res.status(500).json({ status: "error", message: "Failed to download ticket PDF" });
+        res
+          .status(500)
+          .json({ status: "error", message: "Failed to download ticket PDF" });
       }
     });
   } catch (error) {
@@ -388,14 +399,18 @@ exports.validateAttendanceByQRCode = async (req, res) => {
   try {
     if (!req.body) {
       console.error("❌ Request body is missing");
-      return res.status(400).json({ status: "error", message: "Request body diperlukan" });
+      return res
+        .status(400)
+        .json({ status: "error", message: "Request body diperlukan" });
     }
 
     const { qrCode, status } = req.body;
 
     if (!qrCode || typeof qrCode !== "string") {
       console.error("❌ QR Code is invalid:", qrCode);
-      return res.status(400).json({ status: "error", message: "QR code tidak valid" });
+      return res
+        .status(400)
+        .json({ status: "error", message: "QR code tidak valid" });
     }
 
     const cleanedQRCode = qrCode.trim();
@@ -417,7 +432,12 @@ exports.validateAttendanceByQRCode = async (req, res) => {
         take: 3,
         select: { qrCode: true },
       });
-      console.error("❌ Ticket not found. QR:", cleanedQRCode, "Examples:", sampleQRs);
+      console.error(
+        "❌ Ticket not found. QR:",
+        cleanedQRCode,
+        "Examples:",
+        sampleQRs
+      );
       return res.status(404).json({
         status: "error",
         message: "Tiket tidak ditemukan",
@@ -458,13 +478,23 @@ exports.validateAttendanceByQRCode = async (req, res) => {
 
     const now = new Date();
     const visitDate = new Date(order.visitDate);
-    const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const visitDateOnly = new Date(visitDate.getFullYear(), visitDate.getMonth(), visitDate.getDate());
+    const nowDateOnly = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+    const visitDateOnly = new Date(
+      visitDate.getFullYear(),
+      visitDate.getMonth(),
+      visitDate.getDate()
+    );
 
     if (status === "ARRIVED" && nowDateOnly < visitDateOnly) {
       return res.status(400).json({
         status: "error",
-        message: `Tidak bisa validasi kehadiran sebelum tanggal kunjungan (${visitDateOnly.toLocaleDateString("id-ID")})`,
+        message: `Tidak bisa validasi kehadiran sebelum tanggal kunjungan (${visitDateOnly.toLocaleDateString(
+          "id-ID"
+        )})`,
       });
     }
 
@@ -491,7 +521,6 @@ exports.validateAttendanceByQRCode = async (req, res) => {
         visitDate: updatedTicket.orderItem.order.visitDate,
       },
     });
-
   } catch (error) {
     console.error("🔥 Server error:", {
       message: error.message,
@@ -552,18 +581,18 @@ exports.getAllTicketInstances = async (req, res) => {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
-    res.status(200).json({ 
-      status: "success", 
-      data: ticketInstances 
+    res.status(200).json({
+      status: "success",
+      data: ticketInstances,
     });
   } catch (error) {
     console.error("Get all ticket instances failed:", error);
-    res.status(500).json({ 
-      status: "error", 
-      message: error.message 
+    res.status(500).json({
+      status: "error",
+      message: error.message,
     });
   }
 };
@@ -572,11 +601,11 @@ exports.getAllTicketInstances = async (req, res) => {
 exports.getTicketInstanceById = async (req, res) => {
   try {
     const ticketInstanceId = parseInt(req.params.id);
-    
+
     if (isNaN(ticketInstanceId)) {
-      return res.status(400).json({ 
-        status: "error", 
-        message: "ID ticket instance tidak valid" 
+      return res.status(400).json({
+        status: "error",
+        message: "ID ticket instance tidak valid",
       });
     }
 
@@ -593,21 +622,21 @@ exports.getTicketInstanceById = async (req, res) => {
     });
 
     if (!ticketInstance) {
-      return res.status(404).json({ 
-        status: "error", 
-        message: "Ticket instance tidak ditemukan" 
+      return res.status(404).json({
+        status: "error",
+        message: "Ticket instance tidak ditemukan",
       });
     }
 
-    res.status(200).json({ 
-      status: "success", 
-      data: ticketInstance 
+    res.status(200).json({
+      status: "success",
+      data: ticketInstance,
     });
   } catch (error) {
     console.error("Get ticket instance by ID failed:", error);
-    res.status(500).json({ 
-      status: "error", 
-      message: error.message 
+    res.status(500).json({
+      status: "error",
+      message: error.message,
     });
   }
 };
