@@ -82,15 +82,28 @@ exports.updateGallery = async (req, res) => {
     }
 
     const id = parseInt(req.params.id);
-    const { title, description, imageUrl, category } = req.body;
+    const { title, description, category } = req.body;
 
     if (category && !validCategories.includes(category)) {
       return res.status(400).json({ message: "Kategori tidak valid" });
     }
 
+    // Ambil image file jika ada
+    let imageUrl;
+    if (req.file && req.file.filename) {
+      imageUrl = req.file.filename;
+    }
+
+    const updateData = {
+      ...(title && { title }),
+      ...(description && { description }),
+      ...(category && { category }),
+      ...(imageUrl && { imageUrl }),
+    };
+
     const updatedGallery = await prisma.gallery.update({
       where: { id },
-      data: { title, description, imageUrl, category },
+      data: updateData,
     });
 
     res.status(200).json({ message: "Galeri berhasil diperbarui", data: updatedGallery });
