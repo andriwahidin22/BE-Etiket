@@ -207,22 +207,22 @@ exports.login = async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ msg: "Password salah" });
 
-    const token = jwt.sign(
-      {
-        id: user.id,
-        role: user.role,
-        fullName: user.fullName,
-        email: user.email,
-      },
-      SECRET,
-      { expiresIn: "1h" }
-    );
+    const tokenPayload = {
+      id: user.id,
+      role: user.role,
+      fullName: user.fullName,
+      email: user.email,
+    };
+
+    const token = jwt.sign(tokenPayload, SECRET, { expiresIn: "1h" });
+    const decoded = jwt.decode(token); // Dapatkan info exp
 
     return res.json({
       status: "success",
       message: "Login berhasil",
       data: {
         token,
+        tokenExpiresAt: decoded.exp * 1000, // Konversi ke milidetik
         role: user.role,
         user: {
           id: user.id,

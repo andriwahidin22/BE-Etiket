@@ -1,4 +1,4 @@
-//src/middleware/auth.js
+// src/middleware/auth.js
 
 const jwt = require("jsonwebtoken");
 const SECRET = process.env.JWT_SECRET;
@@ -8,9 +8,9 @@ const verifyToken = (req, res, next) => {
 
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith("Bearer ")) {
-    token = authHeader.split(" ")[1]; // Ambil dari Authorization Header
+    token = authHeader.split(" ")[1]; // Untuk ambil dari Authorization Header
   } else if (req.query.token) {
-    token = req.query.token; // Ambil dari query param
+    token = req.query.token; // Untuk ambil dari query param
   }
 
   if (!token) {
@@ -22,9 +22,17 @@ const verifyToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, SECRET);
-    req.user = decoded; // Isi ke req.user untuk dipakai controller
+    req.user = decoded;
     next();
   } catch (err) {
+    if (err.name === "TokenExpiredError") {
+      return res.status(498).json({
+        status: "error",
+        message: "Token telah kedaluwarsa",
+        error: err.message,
+      });
+    }
+
     return res.status(401).json({
       status: "error",
       message: "Token tidak valid",
