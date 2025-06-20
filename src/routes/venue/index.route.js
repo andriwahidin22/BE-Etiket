@@ -1,20 +1,43 @@
-//file routes/venue.js
-
 const express = require("express");
 const router = express.Router();
-const venueController = require("../../controllers/venue/index.controller");
+const venueController = require("../../controllers/venue/index.controller"); // path disesuaikan jika perlu
 const { verifyToken, isAdmin } = require("../../middleware/auth");
 const upload = require("../../middleware/upload");
 
-// GET all venues
-router.get("/", venueController.getVenues);
+// ======================
+// VENUE ROUTES
+// ======================
 
-// POST, PUT, DELETE venue only for Admin
-router.post("/", verifyToken, isAdmin, upload.single("photo"), venueController.createVenue);
-router.put("/:id", verifyToken, isAdmin, upload.single("photo"), venueController.updateVenue);
-router.delete("/:id", verifyToken, isAdmin, venueController.deleteVenue);
+// Public - Get all venues
+router.get("/", venueController.getAllVenues);
 
-// GET venue by id
-router.get('/:id', venueController.getVenueById);
+// Public - Get venue by ID
+router.get("/:id", venueController.getVenueById);
+
+// Admin only - Create venue
+router.post(
+  "/",
+  verifyToken,
+  isAdmin,
+  upload.single("photo"),
+  venueController.createVenue
+);
+
+// Admin only - Update venue
+router.put(
+  "/:id",
+  verifyToken,
+  isAdmin,
+  upload.single("photo"),
+  venueController.updateVenue
+);
+
+// Admin only - Delete venue
+router.delete(
+  "/:id",
+  verifyToken,
+  isAdmin,
+  venueController.deleteVenue
+);
 
 module.exports = router;

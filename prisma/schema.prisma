@@ -34,107 +34,121 @@ enum GalleryCategory {
   EVENT
 }
 
+enum VenueCategory {
+  GEOLOGIKA
+  HISTORIKA
+  KERAMOLOGIKA
+  ARKEOLOGIKA
+  BIOLOGIKA
+  NUMISMATIKA
+  SENI_RUPA
+  ETNOGRAFIKA
+  FIOLOGIKA
+  TEKNOLOGIKA
+}
+
 // ==================== MODELS ====================
 
 // ==== User ====
 model User {
   id                        Int       @id @default(autoincrement())
   email                     String    @unique
-  password                  String?   // password bisa null untuk user Google login
+  password                  String? // password bisa null untuk user Google login
   fullName                  String    @default("Unknown")
   phoneNumber               String    @default("0000000000")
   role                      Role      @default(BUYER)
-  isVerified                Boolean   @default(false)  // status verifikasi email
-  verificationCode          String?   // kode verifikasi email, nullable
+  isVerified                Boolean   @default(false) // status verifikasi email
+  verificationCode          String? // kode verifikasi email, nullable
   verificationCodeExpiresAt DateTime? // waktu expired kode verifikasi
 
-  resetPasswordCode         String?   // kode reset password, nullable
-  resetPasswordExpiresAt    DateTime? // waktu expired kode reset password, nullable
+  resetPasswordCode      String? // kode reset password, nullable
+  resetPasswordExpiresAt DateTime? // waktu expired kode reset password, nullable
 
-  createdAt                 DateTime  @default(now())
-  updatedAt                 DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  orders                    Order[]
-  reviews                   Review[]
-  payments                  Payment[]
+  orders   Order[]
+  reviews  Review[]
+  payments Payment[]
 }
 
 // ==== Ticket ====
 model Ticket {
-  id          Int       @id @default(autoincrement())
-  code        String    @unique
-  type        String
-  price       Int
-  terms       String?   @db.Text
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  type      String
+  price     Int
+  terms     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  orderItems  OrderItem[]
+  orderItems OrderItem[]
 }
 
 // ==== Venue ====
 model Venue {
-  id          Int       @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   name        String
   year        String
   description String
   photo       String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  category    VenueCategory @default(GEOLOGIKA)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @default(now())
 }
 
 // ==== Order ====
 model Order {
-  id               Int               @id @default(autoincrement())
-  orderCode        String            @unique
+  id               Int              @id @default(autoincrement())
+  orderCode        String           @unique
   visitorName      String
   visitDate        DateTime
-  attendanceStatus AttendanceStatus  @default(NOT_ARRIVED)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  attendanceStatus AttendanceStatus @default(NOT_ARRIVED)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-  userId           Int?
-  user             User?             @relation(fields: [userId], references: [id])
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
 
-  payment          Payment?          // <- Diperbaiki, hilangkan @relation
-  orderItems       OrderItem[]
+  payment    Payment? // <- Diperbaiki, hilangkan @relation
+  orderItems OrderItem[]
 }
 
 // ==== Payment ====
 model Payment {
-  id              Int             @id @default(autoincrement())
+  id              Int           @id @default(autoincrement())
   totalAmount     Int
-  paymentStatus   PaymentStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
   paymentMethod   String?
-  transactionDate DateTime        @default(now())
+  transactionDate DateTime      @default(now())
   snapToken       String?
   redirectUrl     String?
   settlementTime  DateTime?
-  midtransOrderId String          @unique
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @default(now())
+  midtransOrderId String        @unique
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now())
 
-  orderId         Int?            @unique
-  order           Order?          @relation(fields: [orderId], references: [id])
+  orderId Int?   @unique
+  order   Order? @relation(fields: [orderId], references: [id])
 
-  userId          Int?
-  visitDate       DateTime?
-  user            User?           @relation(fields: [userId], references: [id])
+  userId    Int?
+  visitDate DateTime?
+  user      User?     @relation(fields: [userId], references: [id])
 
-  ticketDetails   Json?
+  ticketDetails Json?
 }
 
 // ==== Order Item ====
 model OrderItem {
-  id          Int              @id @default(autoincrement())
+  id          Int  @id @default(autoincrement())
   orderId     Int
   ticketId    Int
   quantity    Int
   ticketPrice Int
   totalPrice  Int?
 
-  order       Order            @relation(fields: [orderId], references: [id])
-  ticket      Ticket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  order           Order            @relation(fields: [orderId], references: [id])
+  ticket          Ticket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   ticketInstances TicketInstance[]
 }
 
@@ -143,13 +157,12 @@ model TicketInstance {
   id               Int              @id @default(autoincrement())
   orderItemId      Int
   qrCode           String           @unique
-  attendanceStatus AttendanceStatus  @default(NOT_ARRIVED)
+  attendanceStatus AttendanceStatus @default(NOT_ARRIVED)
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @default(now())
 
-  orderItem        OrderItem        @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
 }
-
 
 // ==== Review ====
 model Review {
@@ -160,14 +173,14 @@ model Review {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user      User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Gallery {
   id          Int             @id @default(autoincrement())
   title       String
   description String?
-  imageUrl    String          // URL atau path foto
+  imageUrl    String // URL atau path foto
   category    GalleryCategory @default(GALLERY)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt

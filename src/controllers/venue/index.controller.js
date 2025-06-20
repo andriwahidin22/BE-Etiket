@@ -6,35 +6,42 @@ const prisma = new PrismaClient();
 // CREATE VENUE
 exports.createVenue = async (req, res) => {
   try {
-    const { name, description, year } = req.body;
+    const { name, description, year, category } = req.body;
     const photo = req.file ? req.file.filename : null;
 
     const venue = await prisma.venue.create({
-      data: { name, description, photo, year },
-      select: { // Hanya pilih field yang ingin ditampilkan
+      data: {
+        name,
+        description,
+        photo,
+        year,
+        category, // kategori sekarang ditambahkan
+      },
+      select: {
         id: true,
         name: true,
         year: true,
         description: true,
-        photo: true
-      }
+        photo: true,
+        category: true,
+      },
     });
 
     res.status(201).json({
       status: "success",
       message: "Venue created successfully",
-      data: venue
+      data: venue,
     });
   } catch (error) {
     res.status(500).json({
       status: "error",
       message: "Failed to create venue",
-      error: error.message
+      error: error.message,
     });
   }
 };
 
-// Untuk getAllVenues dan getVenueById juga perlu disesuaikan
+// GET ALL VENUES
 exports.getAllVenues = async (req, res) => {
   try {
     const venues = await prisma.venue.findMany({
@@ -43,8 +50,9 @@ exports.getAllVenues = async (req, res) => {
         name: true,
         year: true,
         description: true,
-        photo: true
-      }
+        photo: true,
+        category: true,
+      },
     });
     res.json(venues);
   } catch (error) {
@@ -56,10 +64,10 @@ exports.getAllVenues = async (req, res) => {
 exports.updateVenue = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description, category } = req.body;
     const photo = req.file ? req.file.filename : undefined;
 
-    const dataUpdate = { name, description };
+    const dataUpdate = { name, description, category };
     if (photo) dataUpdate.photo = photo;
 
     const updated = await prisma.venue.update({
@@ -103,21 +111,19 @@ exports.deleteVenue = async (req, res) => {
   }
 };
 
-// GET ALL VENUES
-exports.getVenues = async (req, res) => {
-  try {
-    const venues = await prisma.venue.findMany();
-    res.json(venues);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
 // GET VENUE BY ID
 exports.getVenueById = async (req, res) => {
   try {
     const venue = await prisma.venue.findUnique({
-      where: { id: parseInt(req.params.id) }
+      where: { id: parseInt(req.params.id) },
+      select: {
+        id: true,
+        name: true,
+        year: true,
+        description: true,
+        photo: true,
+        category: true,
+      },
     });
 
     if (!venue) {
@@ -128,5 +134,4 @@ exports.getVenueById = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-  
 };
