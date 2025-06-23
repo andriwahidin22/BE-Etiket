@@ -6,10 +6,15 @@ const puppeteer = require("puppeteer");
 
 async function generateInvoicePDF(order, user) {
   try {
-    const templatePath = path.resolve(__dirname, "../views/invoice-template.ejs");
+    const templatePath = path.resolve(
+      __dirname,
+      "../views/invoice-template.ejs"
+    );
     const html = await ejs.renderFile(templatePath, { order, user });
 
-    const browser = await puppeteer.launch();
+    const browser = await puppeteer.launch({
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
 
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });

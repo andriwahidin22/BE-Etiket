@@ -42,14 +42,19 @@ const generateTicketPDF = async ({
       }
     }
 
-    const templatePath = path.resolve(__dirname, "../views/ticket-template.ejs");
+    const templatePath = path.resolve(
+      __dirname,
+      "../views/ticket-template.ejs"
+    );
     const html = await ejs.renderFile(templatePath, {
       order,
       ticketsToRender,
       user,
     });
 
-    const browser = await puppeteer.launch();
+    const browser = await puppeteer.launch({
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
 
     const page = await browser.newPage();
 
