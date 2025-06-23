@@ -1,33 +1,47 @@
+//src/utils/generateReviewPDF.js
+
 const ejs = require("ejs");
 const path = require("path");
-const pdf = require("html-pdf");
+const puppeteer = require("puppeteer");
 const fs = require("fs");
 
 const generateReviewPDF = async (data, outputPath) => {
-  const templatePath = path.join(__dirname, "../views/review-template.ejs");
+  try {
+    const templatePath = path.join(__dirname, "../views/review-template.ejs");
 
-  return new Promise((resolve, reject) => {
-    ejs.renderFile(
-      templatePath,
-      { reviews: data.reviews, averageRating: data.averageRating },
-      (err, html) => {
-        if (err) {
-          return reject(err);
-        }
+    // Render EJS to HTML
+    const html = await ejs.renderFile(templatePath, {
+      reviews: data.reviews,
+      averageRating: data.averageRating,
+    });
 
-        const options = {
-          format: "A4",
-          orientation: "portrait",
-          border: "10mm",
-        };
+    const browser = await puppeteer.launch({
+      executablePath: path.resolve(__dirname, "../chromium/chrome-linux/chrome"), // ✅ sesuaikan path
+      headless: "new",
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
 
-        pdf.create(html, options).toFile(outputPath, (err, res) => {
-          if (err) return reject(err);
-          resolve(res);
-        });
-      }
-    );
-  });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle0" });
+
+    await page.pdf({
+      path: outputPath,
+      format: "A4",
+      printBackground: true,
+      margin: {
+        top: "10mm",
+        bottom: "10mm",
+        left: "10mm",
+        right: "10mm",
+      },
+    });
+
+    await browser.close();
+    return outputPath;
+  } catch (error) {
+    console.error("❌ Failed to generate review PDF:", error);
+    throw error;
+  }
 };
 
 module.exports = generateReviewPDF;

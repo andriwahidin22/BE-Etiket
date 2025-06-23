@@ -7,7 +7,6 @@ async function main() {
   try {
     // Jalankan seeders secara berurutan
     await seedAdmin();
-    await seedPayment();
     
     console.log('\n🎉 All seeders completed successfully!');
   } catch (error) {

@@ -1,4 +1,5 @@
 // src/utils/generateTicketPDF.js
+
 const ejs = require("ejs");
 const path = require("path");
 const puppeteer = require("puppeteer");
@@ -41,24 +42,26 @@ const generateTicketPDF = async ({
       }
     }
 
-    const templatePath = path.resolve(
-      __dirname,
-      "../views/ticket-template.ejs"
-    );
+    const templatePath = path.resolve(__dirname, "../views/ticket-template.ejs");
     const html = await ejs.renderFile(templatePath, {
       order,
       ticketsToRender,
       user,
     });
 
-    const browser = await puppeteer.launch();
+    const browser = await puppeteer.launch({
+      executablePath: path.resolve(__dirname, "../chromium/chrome-linux/chrome"), // ✅ custom path ke Chromium
+      headless: "new",
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+
     const page = await browser.newPage();
 
     await page.setContent(html, { waitUntil: "networkidle0" });
     await page.pdf({
       path: outputPath,
-      width: "143mm", // Match template width
-      height: "50mm", // Match template height
+      width: "143mm",
+      height: "50mm",
       printBackground: true,
       margin: { top: "0mm", bottom: "0mm", left: "0mm", right: "0mm" },
     });
@@ -67,6 +70,7 @@ const generateTicketPDF = async ({
 
     return outputPath;
   } catch (error) {
+    console.error("❌ generateTicketPDF error:", error);
     throw error;
   }
 };
