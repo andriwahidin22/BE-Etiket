@@ -41,10 +41,17 @@ exports.createVenue = async (req, res) => {
   }
 };
 
-// GET ALL VENUES
-exports.getAllVenues = async (req, res) => {
-  try {
+// GET ALL VENUES (with optional category filter)
+exports.getAllVenues = async (req, res) => {  try {
+    const { category } = req.query;
+
+    const filter = {};
+    if (category) {
+      filter.category = category.toUpperCase(); // Sesuaikan kapitalisasi enum jika perlu
+    }
+
     const venues = await prisma.venue.findMany({
+      where: filter,
       select: {
         id: true,
         name: true,
@@ -54,11 +61,13 @@ exports.getAllVenues = async (req, res) => {
         category: true,
       },
     });
+
     res.json(venues);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // UPDATE VENUE
 exports.updateVenue = async (req, res) => {
@@ -67,12 +76,52 @@ exports.updateVenue = async (req, res) => {
     const { name, description, category } = req.body;
     const photo = req.file ? req.file.filename : undefined;
 
-    const dataUpdate = { name, description, category };
+    // Daftar kategori valid sesuai enum VenueCategory di schema.prisma
+    const allowedCategories = [
+      "GEOLOGIKA",
+      "HISTORIKA",
+      "KERAMOLOGIKA",
+      "ARKEOLOGIKA",
+      "BIOLOGIKA",
+      "NUMISMATIKA",
+      "SENI_RUPA",
+      "ETNOGRAFIKA",
+      "FIOLOGIKA",
+      "TEKNOLOGIKA",
+    ];
+
+    // Validasi kategori (jika diberikan)
+    if (category && !allowedCategories.includes(category)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid category provided.",
+      });
+    }
+
+    // Siapkan data untuk update
+    const dataUpdate = {};
+    if (name !== undefined) dataUpdate.name = name;
+    if (description !== undefined) dataUpdate.description = description;
+    if (category !== undefined) dataUpdate.category = category;
     if (photo) dataUpdate.photo = photo;
 
+    // Logging untuk debug (opsional)
+    console.log(`Updating venue ID ${id} with:`, dataUpdate);
+    console.log("BODY:", req.body);
+    console.log("CATEGORY:", req.body.category);
+
+    // Eksekusi update
     const updated = await prisma.venue.update({
       where: { id: Number(id) },
       data: dataUpdate,
+      select: {
+        id: true,
+        name: true,
+        year: true,
+        description: true,
+        photo: true,
+        category: true,
+      },
     });
 
     res.json({
