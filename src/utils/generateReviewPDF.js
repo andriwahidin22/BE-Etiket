@@ -16,8 +16,8 @@ const generateReviewPDF = async (data, outputPath) => {
 
     // ✅ FIX DI SINI - pastikan 'browser' dideklarasikan dengan await
     const browser = await puppeteer.launch({
-      headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      product: "firefox",
+      headless: true,
     });
 
     const page = await browser.newPage();
