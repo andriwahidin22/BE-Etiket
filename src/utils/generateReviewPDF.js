@@ -1,22 +1,21 @@
-//src/utils/generateReviewPDF.js
+// src/utils/generateReviewPDF.js
 
-const ejs = require("ejs");
-const path = require("path");
 const puppeteer = require("puppeteer");
+const ejs = require("ejs");
 const fs = require("fs");
+const path = require("path");
 
 const generateReviewPDF = async (data, outputPath) => {
   try {
     const templatePath = path.join(__dirname, "../views/review-template.ejs");
 
-    // Render EJS to HTML
     const html = await ejs.renderFile(templatePath, {
       reviews: data.reviews,
       averageRating: data.averageRating,
     });
 
+    // ✅ FIX DI SINI - pastikan 'browser' dideklarasikan dengan await
     const browser = await puppeteer.launch({
-      executablePath: path.resolve(__dirname, "../chromium/chrome-linux/chrome"), // ✅ sesuaikan path
       headless: "new",
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
@@ -29,14 +28,14 @@ const generateReviewPDF = async (data, outputPath) => {
       format: "A4",
       printBackground: true,
       margin: {
-        top: "10mm",
-        bottom: "10mm",
-        left: "10mm",
-        right: "10mm",
+        top: "20mm",
+        bottom: "20mm",
+        left: "15mm",
+        right: "15mm",
       },
     });
 
-    await browser.close();
+    await browser.close(); // ✅ Ini harus ditutup
     return outputPath;
   } catch (error) {
     console.error("❌ Failed to generate review PDF:", error);

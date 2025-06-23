@@ -10,7 +10,6 @@ const {
 } = require("../../controllers/review/index.controller");
 const { verifyToken, isAdmin } = require("../../middleware/auth");
 
-
 // GET semua ulasan (akses publik)
 router.get("/", getAllReviews);
 

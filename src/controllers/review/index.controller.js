@@ -3,6 +3,8 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const generateReviewPDF = require("../../utils/generateReviewPDF");
 const path = require("path");
+const fs = require("fs");
+
 
 
 // Mendapatkan semua ulasan
@@ -183,35 +185,7 @@ exports.deleteReview = async (req, res) => {
 
 exports.generateReviewReportPDF = async (req, res) => {
   try {
-    // Ambil token dari query param
-    const token = req.query.token;
-    if (!token) {
-      return res.status(403).json({
-        status: "error",
-        message: "Token wajib dikirim via query ?token=...",
-      });
-    }
-
-    // Verifikasi token
-    let decoded;
-    try {
-      decoded = jwt.verify(token, SECRET);
-    } catch (err) {
-      return res.status(401).json({
-        status: "error",
-        message: "Token tidak valid atau sudah kedaluwarsa",
-      });
-    }
-
-    // Cek role admin
-    if (!decoded || decoded.role !== "ADMIN") {
-      return res.status(403).json({
-        status: "error",
-        message: "Hanya admin yang dapat mengunduh laporan ulasan",
-      });
-    }
-
-    // Ambil data review
+    // Sudah diverifikasi oleh middleware
     const reviews = await prisma.review.findMany({
       include: {
         user: {
@@ -231,8 +205,13 @@ exports.generateReviewReportPDF = async (req, res) => {
         ? reviews.reduce((sum, review) => sum + review.score, 0) / reviews.length
         : 0;
 
-    // Path ke output PDF
     const pdfPath = path.join(__dirname, "../../Reviews/review-report.pdf");
+
+    // Pastikan direktori Reviews ada
+    const reviewsDir = path.dirname(pdfPath);
+    if (!fs.existsSync(reviewsDir)) {
+      fs.mkdirSync(reviewsDir, { recursive: true });
+    }
 
     // Generate PDF
     await generateReviewPDF(
@@ -243,7 +222,6 @@ exports.generateReviewReportPDF = async (req, res) => {
       pdfPath
     );
 
-    // Kirim file PDF
     res.download(pdfPath, "review-report.pdf");
   } catch (error) {
     console.error("❌ Gagal membuat PDF:", error);
