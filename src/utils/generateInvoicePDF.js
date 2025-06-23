@@ -10,9 +10,8 @@ async function generateInvoicePDF(order, user) {
     const html = await ejs.renderFile(templatePath, { order, user });
 
     const browser = await puppeteer.launch({
-      executablePath: path.resolve(__dirname, "../chromium/chrome-linux/chrome"), // ✅ pastikan path ini valid
-      headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      product: "firefox",
+      headless: true,
     });
 
     const page = await browser.newPage();

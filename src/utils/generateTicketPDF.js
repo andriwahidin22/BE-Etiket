@@ -50,9 +50,8 @@ const generateTicketPDF = async ({
     });
 
     const browser = await puppeteer.launch({
-      executablePath: path.resolve(__dirname, "../chromium/chrome-linux/chrome"), // ✅ custom path ke Chromium
-      headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      product: "firefox",
+      headless: true,
     });
 
     const page = await browser.newPage();

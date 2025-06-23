@@ -5,7 +5,12 @@ const path = require("path");
 const fs = require("fs");
 const puppeteer = require("puppeteer");
 
-const generateReportPDF = async ({ summary, totalAll, periodLabel, orders }) => {
+const generateReportPDF = async ({
+  summary,
+  totalAll,
+  periodLabel,
+  orders,
+}) => {
   const templatePath = path.join(__dirname, "../views/report-template.ejs");
   const html = await ejs.renderFile(templatePath, {
     summary,
@@ -24,9 +29,8 @@ const generateReportPDF = async ({ summary, totalAll, periodLabel, orders }) => 
   const outputPath = path.join(reportsDir, fileName);
 
   const browser = await puppeteer.launch({
-    executablePath: path.resolve(__dirname, "../chromium/chrome-linux/chrome"),
-    headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    product: "firefox",
+    headless: true,
   });
 
   const page = await browser.newPage();
