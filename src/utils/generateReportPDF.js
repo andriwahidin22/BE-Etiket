@@ -28,10 +28,7 @@ const generateReportPDF = async ({
   const fileName = `LAPORAN-${timestamp}_report.pdf`;
   const outputPath = path.join(reportsDir, fileName);
 
-  const browser = await puppeteer.launch({
-    product: "firefox",
-    headless: true,
-  });
+  const browser = await puppeteer.launch();
 
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: "networkidle0" });

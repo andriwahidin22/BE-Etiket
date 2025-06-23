@@ -14,11 +14,7 @@ const generateReviewPDF = async (data, outputPath) => {
       averageRating: data.averageRating,
     });
 
-    // ✅ FIX DI SINI - pastikan 'browser' dideklarasikan dengan await
-    const browser = await puppeteer.launch({
-      product: "firefox",
-      headless: true,
-    });
+    const browser = await puppeteer.launch();
 
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });

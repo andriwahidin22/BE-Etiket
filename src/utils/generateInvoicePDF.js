@@ -9,10 +9,7 @@ async function generateInvoicePDF(order, user) {
     const templatePath = path.resolve(__dirname, "../views/invoice-template.ejs");
     const html = await ejs.renderFile(templatePath, { order, user });
 
-    const browser = await puppeteer.launch({
-      product: "firefox",
-      headless: true,
-    });
+    const browser = await puppeteer.launch();
 
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });

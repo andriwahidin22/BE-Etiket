@@ -49,10 +49,7 @@ const generateTicketPDF = async ({
       user,
     });
 
-    const browser = await puppeteer.launch({
-      product: "firefox",
-      headless: true,
-    });
+    const browser = await puppeteer.launch();
 
     const page = await browser.newPage();
 
