@@ -1,18 +1,40 @@
 require("dotenv").config();
 require('events').EventEmitter.defaultMaxListeners = 20;
 const express = require("express");
+const cors = require("cors");
 const path = require("path");
 const helmet = require("helmet");
-
 const midtransErrorHandler = require('./middleware/midtransError');
+
 const apiRoutes = require("./routes/api.route");
 
 const app = express();
 
+// Enhanced CORS Configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      process.env.FRONTEND_URL, 
+      "http://192.168.1.21:3000",
+    ];
+    
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
 // Security Middleware
 app.use(helmet());
+app.use(cors({origin:true,credentials:true}))
 
-// Manual Request Logger
+// Manual Request Logger (Before All Routes)
 app.use((req, res, next) => {
   const now = new Date().toISOString();
   console.log(`[${now}] ${req.method} ${req.originalUrl}`);
@@ -36,7 +58,7 @@ app.get("/api/status", (req, res) => {
   });
 });
 
-// API Routes
+// Mount all API routes
 app.use("/api", apiRoutes);
 
 // Midtrans Error Handler

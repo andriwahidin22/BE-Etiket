@@ -61,7 +61,7 @@ router.get(
     const encodedGoogleAccessToken = encodeURIComponent(googleAccessToken);
 
     // Redirect ke frontend dengan token JWT dan googleAccessToken sebagai query parameter
-    const frontendCallbackUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/auth/google/callback?token=${encodedToken}&googleAccessToken=${encodedGoogleAccessToken}`;
+    const frontendCallbackUrl = `${process.env.FRONTEND_URL || "https://fe-eticket.vercel.app"}/auth/google/callback?token=${encodedToken}&googleAccessToken=${encodedGoogleAccessToken}`;
 
     res.redirect(frontendCallbackUrl);
   }
